@@ -22,6 +22,8 @@ import {
     saveDraft,
     getDraftByEmailId,
     getAllDrafts,
+    getPendingDrafts,
+    sendDraftReminderAPI,
     updateDraft
 } from "../controller/candidate-draft.controller.js";
 
@@ -77,6 +79,8 @@ router.route('/refnow/credit/balance').get(refnowGetCreditBalance);
 router.post("/draft/save", saveDraft);
 router.get("/draft/get", getDraftByEmailId);
 router.get("/draft/all", getAllDrafts);
+router.get("/draft/pending", getPendingDrafts);
+router.post("/draft/reminder/send", sendDraftReminderAPI);
 router.patch("/draft/update", updateDraft);
 
 router.route("/menu").post(createMenu);

@@ -1,6 +1,7 @@
 import { CandidateRegisterDraft } from "../model/candidate_register_draft.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { sendDraftReminders } from "../controller/mail.controller.js";
 
 // Save a new draft
 const saveDraft = async (req, res) => {
@@ -56,6 +57,45 @@ const getAllDrafts = async (req, res) => {
     }
 };
 
+// Get all pending drafts (is_completed = '0')
+const getPendingDrafts = async (req, res) => {
+    try {
+        const drafts = await CandidateRegisterDraft.findAll({
+            where: {
+                is_completed: '0' // ENUM value
+            }
+        });
+        return res.status(200).json(
+            new ApiResponse(200, drafts, "Pending (not completed) drafts fetched successfully.")
+        );
+    } catch (error) {
+        console.error("Error fetching pending drafts:", error);
+        return res.status(500).json(
+            new ApiError(500, error.message, error, error.stack)
+        );
+    }
+};
+
+// Manual API trigger for draft reminders
+const sendDraftReminderAPI = async (req, res) => {
+  try {
+    console.log("Manual API trigger for draft reminders");
+
+    await sendDraftReminders();
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        null,
+        "Draft reminder process triggered successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Error triggering draft reminders manually:", error);
+    return res.status(500).json(new ApiError(500,"Failed to trigger draft reminder process",error));
+  }
+};
+
 // Update draft by email
 const updateDraft = async (req, res) => {
     try {
@@ -87,5 +127,7 @@ export {
     saveDraft,
     getDraftByEmailId,
     getAllDrafts,
+    getPendingDrafts,
+    sendDraftReminderAPI,
     updateDraft
 }

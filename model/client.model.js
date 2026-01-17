@@ -80,6 +80,11 @@ const Client = sequelize.define('client_register',{
     billing_entity_address: DataTypes.TEXT,
 
     status: DataTypes.ENUM("0", "1"),
+    storage_type: {
+        type: DataTypes.ENUM("local", "cloud"),
+        allowNull: true, // matches DB
+        defaultValue: "local",
+    },
     deleted: DataTypes.ENUM("Y", "N"),
 
     created_on: DataTypes.DATE,
