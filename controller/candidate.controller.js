@@ -68,17 +68,22 @@ const candidateRegister = async (req, res) => {
       throw new ApiError(400, "All the fields are required");
     }
 
-    // Uploaded files from middleware
-    const cvFile = req.uploadedFiles?.upload_cv || null;
-    const profileImg = req.uploadedFiles?.profile_img || null;
+    // ---------------- Files from middleware ----------------
+    // These values are:
+    // local  → filename
+    // cloud  → URL
+    // remote → URL
+    const cvFile = req.uploadedFiles?.upload_cv ?? null;
+    const profileImg = req.uploadedFiles?.profile_img ?? null;
 
-    // Storage type from middleware
-    const storageType = req.storage_type || "local";
+    // Storage type decided by middleware
+    const storageType = req.storage_type ?? "local";
 
-    // Check if email already exists
+    // ---------------- Duplicate email check ----------------
     const existingEmail = await Candidate.findOne({
       where: { email_id },
     });
+
     if (existingEmail) {
       throw new ApiError(409, "Email already registered");
     }
@@ -94,9 +99,9 @@ const candidateRegister = async (req, res) => {
         address_line_2,
         landline_no,
         place,
-        job_title: Array.isArray(jobTitle) ? jobTitle.join(',') : jobTitle,
-        care_facility: Array.isArray(careFacility) ? careFacility.join(',') : careFacility,
-        client_need: Array.isArray(clientNeeds) ? clientNeeds.join(',') : clientNeeds,
+        job_title: Array.isArray(jobTitle) ? jobTitle.join(",") : jobTitle,
+        care_facility: Array.isArray(careFacility) ? careFacility.join(",") : careFacility,
+        client_need: Array.isArray(clientNeeds) ? clientNeeds.join(",") : clientNeeds,
         mobile_number,
         email_id,
         candidate_dob,
@@ -116,7 +121,7 @@ const candidateRegister = async (req, res) => {
         w_u_consider,
         dbs,
         dbs_workforce_type,
-        skills: Array.isArray(skills) ? skills.join(',') : skills,
+        skills: Array.isArray(skills) ? skills.join(",") : skills,
         created_by: candidate_name,
         upload_cv: cvFile,
         profile_img: profileImg,
@@ -302,7 +307,7 @@ const getAllInfoCandidate = async (req, res) => {
 
     // Map candidates with proper storage detection
     const result = candidates.map(c => {
-      const isCloud = c.storage_type === "cloud";
+      const isRemoteOrCloud = c.storage_type === "cloud" || c.storage_type === "remote";
 
       return {
         candidate_id: c.candidate_id,
@@ -310,19 +315,15 @@ const getAllInfoCandidate = async (req, res) => {
         storage_type: c.storage_type,
 
         profile_img: c.profile_img
-          ? isCloud
+          ? isRemoteOrCloud
             ? c.profile_img
-            : c.profile_img.startsWith("http")
-              ? c.profile_img
-              : `${baseUrl}/uploads/profile/${c.profile_img}`
+            : `${base_url}/uploads/profile/${c.profile_img}`
           : null,
 
         upload_cv: c.upload_cv
-          ? isCloud
+          ? isRemoteOrCloud
             ? c.upload_cv
-            : c.upload_cv.startsWith("http")
-              ? c.upload_cv
-              : `${baseUrl}/uploads/cv/${c.upload_cv}`
+            : `${base_url}/uploads/cv/${c.upload_cv}`
           : null,
 
         post_code: c.post_code,

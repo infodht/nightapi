@@ -81,7 +81,7 @@ const Client = sequelize.define('client_register',{
 
     status: DataTypes.ENUM("0", "1"),
     storage_type: {
-        type: DataTypes.ENUM("local", "cloud"),
+        type: DataTypes.ENUM("local", "cloud", "remote"),
         allowNull: true, // matches DB
         defaultValue: "local",
     },

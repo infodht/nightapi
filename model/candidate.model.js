@@ -80,7 +80,7 @@ const Candidate = sequelize.define("candidate_register", {
   interview_video_answers: DataTypes.JSON,
   interview_completed_at: DataTypes.DATE,
   storage_type: {
-    type: DataTypes.ENUM("local", "cloud"),
+    type: DataTypes.ENUM("local", "cloud", "remote"),
     allowNull: true, // matches DB
     defaultValue: "local",
   },

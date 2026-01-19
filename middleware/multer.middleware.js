@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import axios from "axios";
+import FormData from "form-data";
 
 dotenv.config();
 
@@ -69,7 +71,41 @@ async function uploadToLocal(file, folder) {
   return fileName;
 }
 
-// ------------------- Field → Folder mapping -------------------
+// --------------------------------------------------
+// Upload to REMOTE API (Custom server / FTP-like)
+// --------------------------------------------------
+async function uploadToRemote(file) {
+  const formData = new FormData();
+
+  formData.append("file", file.buffer, {
+    filename: `${uuid()}_${file.originalname}`,
+    contentType: file.mimetype,
+  });
+
+  formData.append("project", process.env.REMOTE_PROJECT_NAME);
+
+  const response = await axios.post(
+    `${process.env.REMOTE_UPLOAD_BASE_URL}/api/upload`,
+    formData,
+    {
+      headers: {
+        ...formData.getHeaders(),
+        "X-API-KEY": process.env.REMOTE_UPLOAD_API_KEY,
+      },
+      maxBodyLength: Infinity,
+    }
+  );
+
+  if (!response.data?.url) {
+    throw new Error("Remote upload failed");
+  }
+
+  return response.data.url;
+}
+
+// --------------------------------------------------
+// Field → Folder mapping (LOCAL + CLOUD only)
+// --------------------------------------------------
 const FOLDER_MAP = {
   // Candidate
   upload_cv: "upload_cv",    // candidate CV
@@ -84,15 +120,26 @@ const FOLDER_MAP = {
 };
 
 // --------------------------------------------------
-// Middleware
+// Main Middleware
 // --------------------------------------------------
 export const handleUpload = async (req, res, next) => {
   try {
     const uploadedFiles = {};
-
     const storageType = req.body.storage_type || "local";
-    const uploadHandler =
-      storageType === "cloud" ? uploadToCloud : uploadToLocal;
+
+    // Decide upload handler
+    let uploadHandler;
+
+    switch (storageType) {
+      case "cloud":
+        uploadHandler = uploadToCloud;
+        break;
+      case "remote":
+        uploadHandler = uploadToRemote;
+        break;
+      default:
+        uploadHandler = uploadToLocal;
+    }
 
     /**
      * CASE 1: upload.array()
@@ -104,7 +151,12 @@ export const handleUpload = async (req, res, next) => {
       uploadedFiles[field] = [];
 
       for (const file of req.files) {
-        uploadedFiles[field].push(await uploadHandler(file, folder));
+        const result =
+          storageType === "remote"
+            ? await uploadHandler(file)
+            : await uploadHandler(file, folder);
+
+        uploadedFiles[field].push(result);
       }
     }
 
@@ -114,10 +166,13 @@ export const handleUpload = async (req, res, next) => {
     else if (req.files && typeof req.files === "object") {
       for (const field in FOLDER_MAP) {
         if (req.files[field]?.length) {
-          const folder = FOLDER_MAP[field];
           const file = req.files[field][0];
+          const folder = FOLDER_MAP[field];
 
-          uploadedFiles[field] = await uploadHandler(file, folder);
+          uploadedFiles[field] =
+            storageType === "remote"
+              ? await uploadHandler(file)
+              : await uploadHandler(file, folder);
         }
       }
     }
@@ -128,6 +183,6 @@ export const handleUpload = async (req, res, next) => {
     next();
   } catch (err) {
     console.error("Upload Error:", err);
-    return res.status(500).json({ error: "Failed to upload files" });
+    return res.status(500).json({ error: "File upload failed" });
   }
 };
