@@ -88,7 +88,6 @@ router.route("/menu/list/candidate").get(getMenuList);
 
 router.route("/file").get(getFile);
 router.route('/data').get(getCandidateInfoByEmId);
-router.route('/infoById').get(getCandidateInfoById);
 router.route("/candidate/interview").get(getCandidateInterview);
 
 export default router;

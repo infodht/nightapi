@@ -778,24 +778,32 @@ const UpdateCandidateInfo = async (req, res) => {
       return res.status(404).json(new ApiResponse(404, {}, "Candidate not found."));
     }
 
-    // ---------------- Storage detection ----------------
-    const storageType = candidate.storage_type || "local";
-    const isCloud = storageType === "cloud";
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    // --------------------------------------------------
+    // Decide FINAL storage type
+    // Rule:
+    // - If UI sends storage_type → use it (explicit)
+    // - Else → keep existing storage_type (implicit)
+    // --------------------------------------------------
+    const effectiveStorageType =
+      req.storage_type || candidate.storage_type || "local";
 
-    // ---------------- File handling ----------------
+    // --------------------------------------------------
+    // File handling (storage-agnostic)
+    // Middleware already returns:
+    // local  → filename
+    // cloud  → URL
+    // remote → URL
+    // --------------------------------------------------
     if (req.uploadedFiles) {
-      if (req.uploadedFiles.upload_cv) {
-        payload.upload_cv = isCloud
-          ? req.uploadedFiles.upload_cv // cloud URL already
-          : `${baseUrl}/uploads/cv/${req.uploadedFiles.upload_cv}`;
+      if (req.uploadedFiles.upload_cv !== undefined) {
+        payload.upload_cv = req.uploadedFiles.upload_cv;
       }
 
-      if (req.uploadedFiles.profile_img) {
-        payload.profile_img = isCloud
-          ? req.uploadedFiles.profile_img // cloud URL already
-          : `${baseUrl}/uploads/profile/${req.uploadedFiles.profile_img}`;
+      if (req.uploadedFiles.profile_img !== undefined) {
+        payload.profile_img = req.uploadedFiles.profile_img;
       }
+
+      payload.storage_type = effectiveStorageType;
     }
 
     // Fields we NEVER allow updating
@@ -821,11 +829,11 @@ const UpdateCandidateInfo = async (req, res) => {
     if (candidate.em_id) {
       const employee = await Employee.findOne({
         where: { em_id: candidate.em_id },
-        transaction: t
+        transaction: t,
       });
 
       if (employee) {
-        const nameParts = candidate.candidate_name.split(" ");
+        const nameParts = candidate.candidate_name?.split(" ") || [];
         const firstName = nameParts[0] || employee.first_name;
         const lastName = nameParts.slice(1).join(" ") || employee.last_name;
 
@@ -883,14 +891,24 @@ const getFile = async (req, res) => {
 
 const getCandidateInfoById = async (req, res) => {
   try {
-    const { candidate_id } = req.query;
+    const { candidate_id, profile_id } = req.query;
 
-    if (!candidate_id) {
-      return res.status(400).json({ success: false, message: "candidate_id is required" });
+    // ---------------- ID validation ----------------
+    if (!candidate_id && !profile_id) {
+      return res.status(400).json({
+        success: false,
+        message: "candidate_id or profile_id is required",
+      });
     }
 
-    // Fetch candidate by candidate_id
-    const candidate = await Candidate.findOne({ where: { candidate_id } });
+    let candidate;
+    if (candidate_id) {
+      candidate = await Candidate.findOne({ where: { candidate_id } });
+    } else {
+      candidate = await Candidate.findOne({
+        where: { em_id: profile_id }, // or candidate_id if that’s intended
+      });
+    }
 
     if (!candidate) {
       return res.status(404).json({ success: false, message: "Candidate not found" });
@@ -911,25 +929,43 @@ const getCandidateInfoById = async (req, res) => {
     const needMap = Object.fromEntries(needs.map(n => [n.id, n.name]));
 
     const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const isCloud = candidate.storage_type === "cloud"; // storage_type detection
 
-    // Utility to check if a string is already a full URL (http, https, ftp, s3, etc.)
-    const isFullUrl = (str) => /^[a-zA-Z]+:\/\//.test(str);
+    // ✅ Final storage detection
+    const isRemoteOrCloud =
+      candidate.storage_type === "cloud" ||
+      candidate.storage_type === "remote";
 
     // ---------------- Interview data mapping ----------------
+    let interviewQuestions = [];
+    let interviewVideos = [];
+
+    try {
+      interviewQuestions = candidate.interview_questions
+        ? JSON.parse(candidate.interview_questions)
+        : [];
+    } catch {
+      interviewQuestions = [];
+    }
+
+    try {
+      interviewVideos = candidate.interview_video_answers
+        ? JSON.parse(candidate.interview_video_answers)
+        : [];
+    } catch {
+      interviewVideos = [];
+    }
+
     const interviewData = [];
-    const questions = Array.isArray(candidate.interview_questions) ? candidate.interview_questions : [];
-    const videos = Array.isArray(candidate.interview_video_answers) ? candidate.interview_video_answers : [];
-    const maxLength = Math.max(questions.length, videos.length);
+    const maxLength = Math.max(interviewQuestions.length, interviewVideos.length);
 
     for (let i = 0; i < maxLength; i++) {
       interviewData.push({
-        question: questions[i] || null,
-        video_answer: videos[i]
-          ? isCloud || isFullUrl(videos[i])
-            ? videos[i]
-            : `${baseUrl}/attach/interview/videos/${videos[i]}`
-          : null
+        question: interviewQuestions[i] || null,
+        video_answer: interviewVideos[i]
+          ? isRemoteOrCloud
+            ? interviewVideos[i]
+            : `${baseUrl}/attach/interview/videos/${interviewVideos[i]}`
+          : null,
       });
     }
 
@@ -939,18 +975,16 @@ const getCandidateInfoById = async (req, res) => {
       candidate_name: candidate.candidate_name,
       storage_type: candidate.storage_type || "local",
 
-      // Handle profile image dynamically
       profile_img: candidate.profile_img
-        ? isCloud || isFullUrl(candidate.profile_img)
+        ? isRemoteOrCloud
           ? candidate.profile_img
           : `${baseUrl}/uploads/profile/${candidate.profile_img}`
         : null,
 
-      // Handle CV dynamically
       upload_cv: candidate.upload_cv
-        ? isCloud || isFullUrl(candidate.upload_cv)
+        ? isRemoteOrCloud
           ? candidate.upload_cv
-          : `${baseUrl}/upload_cv/${candidate.upload_cv}`
+          : `${baseUrl}/uploads/cv/${candidate.upload_cv}`
         : null,
 
       post_code: candidate.post_code,
