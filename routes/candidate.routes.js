@@ -34,18 +34,29 @@ import {
 
 import { upload, handleUpload } from "../middleware/multer.middleware.js";
 import { Router } from "express";
+import authenticateUser from "../middleware/auth.middleware.js";
 
 const router = Router();
 
+// public routes
+
 router.post(
-    "/candidate",
-    upload.fields([
-        { name: "upload_cv", maxCount: 1 },
-        { name: "profile_img", maxCount: 1 }
-    ]),
-    handleUpload,
-    candidateRegister
+  "/candidate",
+  upload.fields([
+    { name: "upload_cv", maxCount: 1 },
+    { name: "profile_img", maxCount: 1 }
+  ]),
+  handleUpload,
+  candidateRegister
 );
+router.post("/draft/save", saveDraft);
+
+// auth middleware (everything below is protected)
+
+router.use(authenticateUser);
+
+// protected routes
+
 router.put(
     "/candidate/update",
     upload.fields([
@@ -76,7 +87,6 @@ router.route("/refnow/questionprofiles").get(refnowGetQuestionProfiles);
 router.route('/refnow/request/create').post(refnowPostNewRequest);
 router.route('/refnow/credit/balance').get(refnowGetCreditBalance);
 
-router.post("/draft/save", saveDraft);
 router.get("/draft/get", getDraftByEmailId);
 router.get("/draft/all", getAllDrafts);
 router.get("/draft/pending", getPendingDrafts);
