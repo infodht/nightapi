@@ -570,7 +570,7 @@ const sendDraftReminders = async () => {
         const encodedPhone = encodeBase64(draft.mobile_number);
         const encodedCountryCode = encodeBase64(draft.countryCode);
 
-        const url = `${process.env.FRONTEND_BASE_URL}/candidate/candidate_registration?name=${encodedName}&email=${encodedEmail}&phone=${encodedPhone}&country=${encodedCountryCode}`;
+        const url = `${process.env.FRONTEND_BASE_URL}/P1Candidate/candidate_registration?name=${encodedName}&email=${encodedEmail}&phone=${encodedPhone}&country=${encodedCountryCode}`;
         console.log("Final encoded URL:", url);
 
         const mjmlTemplate = `
