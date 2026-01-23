@@ -3,6 +3,14 @@ import { Employee } from "../model/employee.model.js";
 
 const authenticateUser = async (req, res, next) => {
   try {
+    // ALLOW PUBLIC ACCESS TO UPLOADED FILES (PDF / IMAGE)
+    if (
+      req.method === "GET" &&
+      req.originalUrl.startsWith("/uploads")
+    ) {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

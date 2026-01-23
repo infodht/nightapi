@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import authenticateUser from "./middleware/auth.middleware.js";
+import path from "path";
+import { fileURLToPath } from "url";
 import candidateRouter from "./routes/candidate.routes.js";
 import countryCodeRouter from "./routes/country_code.routes.js";
 import jobTitleRouter from "./routes/job_title.routes.js";
@@ -22,6 +24,9 @@ import "./cronjob/reminder.cron.js";
 dotenv.config();
 const app = express();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(express.json());
 
 app.use(
@@ -36,10 +41,10 @@ app.use(
 
 // public static files
 
-app.use('/uploads/cv', express.static('backend/attach/upload_cv'));
-app.use('/uploads/profile', express.static('backend/attach/uploads'));
-app.use('/uploads/client/logo', express.static('backend/attach/client/logo'));
-app.use('/uploads/client/contract', express.static('backend/attach/client/contract'));
+app.use('/uploads/cv', express.static(path.join(__dirname, 'attach', 'upload_cv')));
+app.use('/uploads/profile', express.static(path.join(__dirname, 'attach', 'uploads')));
+app.use('/uploads/client/logo', express.static(path.join(__dirname, 'attach', 'client', 'logo')));
+app.use('/uploads/client/contract', express.static(path.join(__dirname, 'attach', 'client', 'contract')));
 
 // public routes
 
