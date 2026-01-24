@@ -1,7 +1,6 @@
 import log4js from 'log4js';
 import path from 'path';
 
-
 log4js.configure({
   appenders: {
     console: {
@@ -36,5 +35,12 @@ log4js.configure({
   }
 });
 
-export const logger = log4js.getLogger();
-export const errorLogger = log4js.getLogger("error");
+const logger = log4js.getLogger();
+const errorLogger = log4js.getLogger("error");
+
+export default {
+  info: (message) => logger.info(message),
+  error: (message) => errorLogger.error(message),
+  warn: (message) => logger.warn(message),
+  debug: (message) => logger.debug(message)
+};

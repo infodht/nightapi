@@ -1,20 +1,21 @@
 import jwt from 'jsonwebtoken';
 import { Employee } from '../model/employee.model.js';
 import { LoginLogs } from '../model/login_logs.model.js';
-//  import { Roles } from '../model/role.model.js';
 import crypto from 'crypto';
- const login = async (req, res) => {
+import logger from '../logger/logger.js';
+
+const login = async (req, res) => {
 
     try {
-
       const {
       password,
       email
       } = req.body
 
-      // console.log(req.body)
+      logger.info(`Login attempt for email: ${email}`);
 
       if(!password || !email){
+        logger.warn('Login attempt with missing email or password');
         return res.status(401).json({
           message: 'All Fields Are Required'
         })
@@ -31,9 +32,8 @@ import crypto from 'crypto';
          where: { em_email: email, em_password: hashedPassword }
       });
 
-      // console.log("Found user:", user ? user.toJSON() : null);
-
     if(!user){
+      logger.warn(`Invalid login attempt for email: ${email}`);
       return res.status(401).json({
         message: 'Invalid Credentails'
       })
@@ -58,6 +58,7 @@ import crypto from 'crypto';
       ip_address: req.ip,
     })
     
+    logger.info(`User logged in successfully - ID: ${user.em_id}, Email: ${user.em_email}`);
     return res.status(200)
            .json({
             message: "Login Successfully",
@@ -65,7 +66,7 @@ import crypto from 'crypto';
            })
 
     } catch (error) {
-      console.log(error);
+      logger.error(`Error during login for email ${email}: ${error.message}`);
         return res.status(500).json({
             message: "Error while login"
         })

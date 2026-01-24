@@ -2,9 +2,11 @@ import { Permission } from "../model/access_control.model.js";
 import { Roles } from "../model/role.model.js";
 import { Menu } from "../model/menu.model.js";
 import { Op } from "sequelize";
+import logger from "../logger/logger.js";
 
 const createPermission = async (req, res) => {
   try {
+    logger.info(`Creating permission for role_id: ${req.body.role_id}, menu_id: ${req.body.menu_id}`);
     const {
       menu_id,
       role_id,
@@ -24,6 +26,7 @@ const createPermission = async (req, res) => {
 
     // console.log("existing permission",existing)
     if (existing) {
+      logger.info(`Permission already exists, updating for role_id: ${role_id}, menu_id: ${menu_id}`);
       await existing.update({
       readp,
       writep,
@@ -32,6 +35,7 @@ const createPermission = async (req, res) => {
       start_time,
       end_time,
       })
+      logger.info(`Permission updated successfully for role_id: ${role_id}, menu_id: ${menu_id}`);
       return res
       .status(201)
       .json({ message: "Permission updated successfully", existing });
@@ -48,13 +52,12 @@ const createPermission = async (req, res) => {
       end_time,
     });
 
-
-    // console.log("permission created", permission)
-
+    logger.info(`Permission created successfully - role_id: ${role_id}, menu_id: ${menu_id}`);
     return res
       .status(201)
       .json({ message: "Permission created successfully", permission });
   } catch (error) {
+    logger.error(`Error creating permission: ${error.message}`);
     return res
       .status(500)
       .json({ message: "Error while creating permission", error: error.message });
@@ -65,8 +68,7 @@ const createPermission = async (req, res) => {
 const getPermissionById = async (req, res) => {
   try {
     const { roleId } = req.query;
-
-    // console.log(roleId);
+    logger.info(`Fetching permissions for roleId: ${roleId}`);
 
     const permission = await Permission.findAll({
     where: { role_id: roleId },
@@ -74,18 +76,17 @@ const getPermissionById = async (req, res) => {
         { model: Roles, as: "Role", attributes: ["id", "rolename"] },
         { model: Menu, as: "Menu", attributes: ["id", "menu_name"] },
     ],
-    // logging: console.log,
     });
 
-
-    // console.log("Getting permission from permission", permission)
-
     if (!permission) {
+      logger.warn(`Permission not found for roleId: ${roleId}`);
       return res.status(404).json({ message: "Permission not found" });
     }
 
+    logger.info(`Retrieved ${permission.length} permissions for roleId: ${roleId}`);
     return res.status(200).json({ permission });
   } catch (error) {
+    logger.error(`Error fetching permissions for roleId: ${error.message}`);
     return res
       .status(500)
       .json({ message: "Error while fetching permission", error: error.message });
@@ -96,9 +97,11 @@ const getPermissionById = async (req, res) => {
 const getSidebarMenuByRole = async (req, res) => {
     const { roleId } = req.query;
     if (!roleId) {
+        logger.warn('Sidebar menu request without roleId');
         return res.status(400).json({ success: false, message: "Role ID is required" });
     }
 
+    logger.info(`Fetching sidebar menu for roleId: ${roleId}`);
     try {
         const permissions = await Permission.findAll({
             where: {
@@ -128,6 +131,7 @@ const getSidebarMenuByRole = async (req, res) => {
         });
 
         if (!permissions.length) {
+            logger.warn(`No permissions found for roleId: ${roleId}`);
             return res.status(404).json({ success: false, message: "No permissions found for this role." });
         }
 
@@ -146,6 +150,7 @@ const getSidebarMenuByRole = async (req, res) => {
                     : null,
             }));
 
+        logger.info(`Sidebar menu fetched successfully for roleId: ${roleId}`);
         return res.status(200).json({
             success: true,
             message: "Menu list fetched successfully",
@@ -153,7 +158,7 @@ const getSidebarMenuByRole = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        logger.error(`Error getting sidebar menu for roleId ${roleId}: ${error.message}`);
         return res.status(500).json({
             success: false,
             message: "Error while getting menu list",
@@ -165,6 +170,7 @@ const getSidebarMenuByRole = async (req, res) => {
 
 const getAllMenuPermissions = async (req, res) => {
     try {
+        logger.info('Fetching all menu permissions');
         const menuPermissions = await Menu.findAll({
             include: [
                 {
@@ -217,10 +223,11 @@ const getAllMenuPermissions = async (req, res) => {
 
 
         // console.log("formattedMenu",formattedMenu)
+        logger.info(`Retrieved ${menuPermissions.length} menus with permissions`);
         return res.status(200).json({ success: true, data: formattedMenu });
 
     } catch (error) {
-        console.log("Error while fetching menu permissions:", error);
+        logger.error(`Error fetching menu permissions: ${error.message}`);
         return res.status(500).json({ message: "Error while getting permission list with menu", error: error.message });
     }
 };

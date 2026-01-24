@@ -20,6 +20,7 @@ import mailRouter from "./routes/mail.routes.js";
 import employeeRouter from "./routes/employee.routes.js";
 
 import "./cronjob/reminder.cron.js";
+import "./cronjob/logCleanup.cron.js";
 
 dotenv.config();
 const app = express();

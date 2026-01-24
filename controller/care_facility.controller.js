@@ -2,17 +2,20 @@ import { careFacility } from '../model/care_facility.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { Op } from 'sequelize';
+import logger from '../logger/logger.js';
 
 const createCareFacility = async(req, res) => {
 
     const{ careFacilityName, created_by } = req.body;
     try {
+        logger.info(`Creating care facility: ${careFacilityName}`);
      
         const checkCareExisted = await careFacility.findOne({
             where: { facility_name: careFacilityName }
         })
 
         if(checkCareExisted){
+          logger.warn(`Care facility already exists: ${careFacilityName}`);
           return res.status(500).json(new ApiResponse(500,{},'Care Facility already existed'))
         }
 
@@ -23,19 +26,23 @@ const createCareFacility = async(req, res) => {
             created_on: new Date()
         })
 
+        logger.info(`Care facility created successfully: ${careFacilityName} (ID: ${care.id})`);
         return res.status(200).json(new ApiResponse(200,care,'Care Facility Needs added successfully'))
     } catch (error) {
-        console.log(error);
+        logger.error(`Error creating care facility: ${error?.message}`);
       return res.status(500).json(new ApiResponse(500,{},error?.message))
     }
 }
 
 const getAllCareFacility = async(req, res) => {
     try {
+        logger.info('Fetching all care facilities');
         const careFacilities = await careFacility.findAll();
 
+        logger.info(`Retrieved ${careFacilities.length} care facilities`);
         return res.status(200).json(new ApiResponse(200, careFacilities, "Care Facility Fetched Successfully"));
     } catch (error) {
+        logger.error(`Error fetching care facilities: ${error.message}`);
         return res.status(500).json(new ApiError(500, error.message, error, error.stack))
     }
 }
@@ -46,8 +53,10 @@ const updateFacilityName =  async(req, res) => {
     const { careFacilityName } = req.body;
 
     try {
+    logger.info(`Updating care facility ID: ${id} to name: ${careFacilityName}`);
     const clientCareFacility = await careFacility.findByPk(id);
     if (!clientCareFacility) {
+      logger.warn(`Care facility not found for update - ID: ${id}`);
       return res
         .status(404)
         .json(new ApiResponse(404, {}, "Facility not found"));
@@ -61,6 +70,7 @@ const updateFacilityName =  async(req, res) => {
     });
 
     if (duplicateFacility) {
+      logger.warn(`Duplicate care facility name attempted: ${careFacilityName}`);
       return res
         .status(400)
         .json(new ApiResponse(400, {}, "Facility name already exists"));
@@ -71,12 +81,13 @@ const updateFacilityName =  async(req, res) => {
     clientCareFacility.updated_on = new Date();
     await clientCareFacility.save();
 
+    logger.info(`Care facility updated successfully - ID: ${id}`);
     return res
       .status(200)
       .json(new ApiResponse(200, clientCareFacility, "Care Facility updated successfully"));
 
     } catch (error) {
-    console.error(error);
+    logger.error(`Error updating care facility ID ${id}: ${error.message}`);
     return res
       .status(500)
       .json(new ApiResponse(500, {}, error.message || "Internal server error while updating care facility"));
@@ -87,9 +98,11 @@ const deleteCareFacility = async(req, res) => {
     const { id } = req.query;
 
     try {
+        logger.info(`Deleting care facility ID: ${id}`);
         const clientCareFacility = await careFacility.findByPk(id);
 
         if(!clientCareFacility){
+            logger.warn(`Care facility not found for deletion - ID: ${id}`);
             return res.status(400).json({
                 message: "Facility not found"
             })
@@ -100,13 +113,14 @@ const deleteCareFacility = async(req, res) => {
 
      const deleteFacility = await clientCareFacility.save();
 
+     logger.info(`Care facility deleted successfully - ID: ${id}`);
      return res.status(200).json({
         message: "Facility deleted successfully",
         deleteFacility
      }) 
 
     } catch (error) {
-        console.log("this error comes from deleting care facility", error);
+        logger.error(`Error deleting care facility ID ${id}: ${error.message}`);
         return res.status(500).json({
             error,
             message: "Error while deleting care facility"
