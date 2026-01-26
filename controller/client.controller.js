@@ -10,6 +10,7 @@ import { job_title } from "../model/job_title.model.js";
 import { Employee } from "../model/employee.model.js";
 import { sequelize } from "../database/db.connection.js";
 import crypto from "crypto";
+import logger from '../logger/logger.js';
 import { getPrefixFromRole, generateNextId } from "../controller/employee.controller.js";
 
 const registerClient = async (req, res) => {
@@ -58,7 +59,10 @@ const registerClient = async (req, res) => {
       em_password
     } = req.body;
 
+    logger.info(`Client registration request - Email: ${contact_email}, Organization: ${client_organisation}`);
+
     if (!em_password) {
+      logger.warn(`Client registration - Password required - Email: ${contact_email}`);
       throw new Error("Password required for creating employee");
     }
 
@@ -79,6 +83,7 @@ const registerClient = async (req, res) => {
 
     if (employeeExists || clientExists) {
       await t.rollback();
+      logger.warn(`Client registration - Email already registered: ${contact_email}`);
       return res.status(400).json({
         status: 400,
         success: false,
@@ -87,6 +92,7 @@ const registerClient = async (req, res) => {
     }
 
     /* ================= CREATE EMPLOYEE ================= */
+    logger.info(`Creating employee for client registration - Email: ${contact_email}, ID: ${contact_name}`);
     const prefix = getPrefixFromRole("CLIENT");
     const em_id = await generateNextId(prefix);
 
@@ -266,6 +272,7 @@ const registerClient = async (req, res) => {
 
     await t.commit();
 
+    logger.info(`Client and employee registered successfully - Email: ${contact_email}, Client ID: ${client.id}`);
     return res.status(200).json({
       status: 200,
       success: true,
@@ -276,7 +283,7 @@ const registerClient = async (req, res) => {
 
   } catch (err) {
     await t.rollback();
-    console.error("Error in registerClient:", err);
+    logger.error(`Error in client registration: ${err.message}`);
     return res.status(500).json({
       status: 500,
       success: false,
@@ -287,6 +294,7 @@ const registerClient = async (req, res) => {
 
 const getParentEntity = async (req, res) => {
   try {
+    logger.info("Fetching parent entities");
     const parentEntity = await Client.findAll({
       where: {
         status: "1",
@@ -294,8 +302,10 @@ const getParentEntity = async (req, res) => {
       attributes: ["client_organisation"]
     })
 
+    logger.info(`Parent entities fetched successfully - Count: ${parentEntity?.length || 0}`);
     return res.status(200).json(new ApiResponse(200, parentEntity, "Parent Entity Fetched Successfully"));
   } catch (error) {
+    logger.error(`Error fetching parent entities: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, {}, error.message));
   }
 }
@@ -310,6 +320,8 @@ const getAllClientInfo = async (req, res) => {
 
     // Search
     const search = req.query.search ? req.query.search.trim() : null;
+
+    logger.info(`Fetching all clients - Page: ${page}, Limit: ${limit}, Search: ${search || 'none'}`);
 
     // Base condition
     const whereCondition = {
@@ -348,12 +360,14 @@ const getAllClientInfo = async (req, res) => {
 
     // If no clients found
     if (!clients.length) {
+      logger.warn(`No clients found - Page: ${page}, Search: ${search || 'none'}`);
       return res
         .status(404)
         .json(new ApiResponse(404, {}, "No client info found"));
     }
 
     // Return paginated result
+    logger.info(`Fetched ${total} clients successfully - Page: ${page}`);
     return res.status(200).json(
       new ApiResponse(
         200,
@@ -368,6 +382,7 @@ const getAllClientInfo = async (req, res) => {
       )
     );
   } catch (error) {
+    logger.error(`Error fetching clients: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, {}, error.message));
   }
 };
@@ -377,8 +392,8 @@ const getClientInfoById = async (req, res) => {
 
   const { id } = req.query;
 
-  // console.log("id", id)
   try {
+    logger.info(`Fetching client info - Client ID: ${id}`);
     const clients = await Client.findAll({
       where: {
         id: id,
@@ -386,10 +401,15 @@ const getClientInfoById = async (req, res) => {
       },
     })
 
-    // console.log("clients", clients)
+    if (!clients.length) {
+      logger.warn(`Get client info - Client not found - ID: ${id}`);
+    } else {
+      logger.info(`Client info fetched successfully - ID: ${id}`);
+    }
 
     return res.status(200).json(new ApiResponse(200, clients, "clients Fetched Successfully"))
   } catch (error) {
+    logger.error(`Error fetching client info: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, {}, error.message));
   }
 }
@@ -397,8 +417,8 @@ const getClientInfoByEmId = async (req, res) => {
 
   const { em_id } = req.query;
 
-  // console.log("id", id)
   try {
+    logger.info(`Fetching client info by EM ID - EM ID: ${em_id}`);
     const clients = await Client.findAll({
       where: {
         em_id: em_id,
@@ -406,10 +426,15 @@ const getClientInfoByEmId = async (req, res) => {
       },
     })
 
-    // console.log("clients", clients)
+    if (!clients.length) {
+      logger.warn(`Get client by EM ID - Client not found - EM ID: ${em_id}`);
+    } else {
+      logger.info(`Client fetched by EM ID successfully - EM ID: ${em_id}`);
+    }
 
     return res.status(200).json(new ApiResponse(200, clients, "clients Fetched Successfully"))
   } catch (error) {
+    logger.error(`Error fetching client by EM ID: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, {}, error.message));
   }
 }
@@ -418,6 +443,7 @@ const getClientInfoByEmId = async (req, res) => {
 const getAllServicesInfo = async (req, res) => {
   try {
     const { client_id } = req.query;
+    logger.info(`Fetching all services info - Client ID: ${client_id}`);
 
     const allClientNeeds = await client_needs.findAll();
 
@@ -434,6 +460,12 @@ const getAllServicesInfo = async (req, res) => {
         },
       ]
     });
+
+    if (!services.length) {
+      logger.warn(`Get services - No services found - Client ID: ${client_id}`);
+    } else {
+      logger.info(`Services fetched successfully - Client ID: ${client_id}, Count: ${services.length}`);
+    }
 
     const result = services.map(service => {
       const serviceJSON = service.toJSON();
@@ -464,6 +496,7 @@ const getAllServicesInfo = async (req, res) => {
     });
 
   } catch (error) {
+    logger.error(`Error fetching services: ${error.message}`);
     return res.status(500).json({ status: 500, data: {}, message: error.message });
   }
 };
@@ -473,6 +506,7 @@ const getShiftPattern = async (req, res) => {
   const { client_id } = req.query;
 
   try {
+    logger.info(`Fetching shift pattern - Client ID: ${client_id}`);
 
     const getShifPatternData = await shift_patterns.findAll({
       where: {
@@ -480,8 +514,15 @@ const getShiftPattern = async (req, res) => {
       }
     })
 
+    if (!getShifPatternData.length) {
+      logger.info(`Get shift pattern - No patterns found - Client ID: ${client_id}`);
+    } else {
+      logger.info(`Shift pattern fetched successfully - Client ID: ${client_id}, Count: ${getShifPatternData.length}`);
+    }
+
     return res.status(200).json(new ApiResponse(200, getShifPatternData, "Shift Pattern Fetched Successfully"));
   } catch (error) {
+    logger.error(`Error fetching shift pattern: ${error.message}`);
     return res.status(500).json({ status: 500, data: {}, message: error.message });
   }
 }
@@ -489,6 +530,7 @@ const getShiftPattern = async (req, res) => {
 const getPayRate = async (req, res) => {
   try {
     const { client_id } = req.query;
+    logger.info(`Fetching pay rate - Client ID: ${client_id}`);
 
     const payRate = await Payrate.findAll({
       where: {
@@ -503,40 +545,42 @@ const getPayRate = async (req, res) => {
       ]
     })
 
+    if (!payRate.length) {
+      logger.info(`Get pay rate - No rates found - Client ID: ${client_id}`);
+    } else {
+      logger.info(`Pay rate fetched successfully - Client ID: ${client_id}, Count: ${payRate.length}`);
+    }
+
     return res.status(200).json(new ApiResponse(200, payRate, "Pay Rate Fetched Successfully"));
   } catch (error) {
-    console.log("error while getting pay rate", error)
+    logger.error(`Error fetching pay rate: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, {}, error.message));
   }
 }
 
 const deleteFromList = async (req, res) => {
   try {
-    // console.log('This is delete application')
     const { id } = req.query;
+    logger.info(`Deleting client - ID: ${id}`);
 
     const record = await Client.findByPk(id);
 
-    // console.log('delete records', record)
-
     if (!record) {
+      logger.warn(`Delete client - Client not found - ID: ${id}`);
       return res.status(404).json(new ApiResponse(404, {}, "Record not found"));
     }
 
     record.deleted = 'Y';
     record.deleted_by = req.user?.id;
-
-    // console.log("request id", req.user?.id);
-    // console.log("request id", new Date());
-
     record.deleted_on = new Date();
 
     await record.save();
 
+    logger.info(`Client deleted successfully - ID: ${id}`);
     return res.status(200).json(new ApiResponse(200, record, " Client id deleted successfully"));
 
-
   } catch (error) {
+    logger.error(`Error deleting client: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, {}, error.message));
   }
 }
@@ -547,13 +591,17 @@ const updateClientDetails = async (req, res) => {
     const { client_id } = req.query;
     const payload = req.body;
 
+    logger.info(`Updating client details - Client ID: ${client_id}`);
+
     if (!client_id) {
+      logger.warn("Update client - Missing client ID");
       return res.status(400).json(
         new ApiResponse(400, {}, "Client ID is required in query parameters.")
       );
     }
 
     if (Object.keys(payload).length === 0 && !req.uploadedFiles) {
+      logger.warn(`Update client - Empty request body - Client ID: ${client_id}`);
       return res.status(400).json(
         new ApiResponse(400, {}, "Request body cannot be empty for an update.")
       );
@@ -563,6 +611,7 @@ const updateClientDetails = async (req, res) => {
 
     if (!client) {
       await t.rollback();
+      logger.warn(`Update client - Client not found - ID: ${client_id}`);
       return res.status(404).json(
         new ApiResponse(404, {}, "Client not found")
       );
@@ -570,6 +619,7 @@ const updateClientDetails = async (req, res) => {
 
     // NEVER allow email update
     if (payload.contact_email && payload.contact_email !== client.main_email) {
+      logger.warn(`Update client - Email change attempt - Client ID: ${client_id}`);
       return res.status(400).json(
         new ApiResponse(400, {}, "Client email cannot be changed.")
       );
@@ -645,6 +695,7 @@ const updateClientDetails = async (req, res) => {
 
     if (!employee) {
       await t.rollback();
+      logger.warn(`Update client - Employee not found - Email: ${client.main_email}`);
       return res.status(404).json(
         new ApiResponse(404, {}, "Mapped employee not found")
       );
@@ -671,13 +722,14 @@ const updateClientDetails = async (req, res) => {
     }, { transaction: t });
 
     await t.commit();
+    logger.info(`Client and employee updated successfully - Client ID: ${client_id}`);
     return res.status(200).json(
       new ApiResponse(200, client, "Client & Employee updated successfully")
     );
 
   } catch (err) {
     await t.rollback();
-    console.error("Update Client Error:", err);
+    logger.error(`Error updating client details: ${err.message}`);
     return res.status(500).json(
       new ApiResponse(500, {}, err.message)
     );
@@ -689,16 +741,21 @@ const updateClientService = async (req, res) => {
     const { client_id } = req.query;
     const { service_entries } = req.body;
 
+    logger.info(`Updating client services - Client ID: ${client_id}, Entries: ${service_entries?.length || 0}`);
+
     if (!client_id) {
+      logger.warn("Update client service - Missing client ID");
       return res.status(400).json(new ApiResponse(400, {}, "Client ID is required."));
     }
 
     if (!Array.isArray(service_entries) || service_entries.length === 0) {
+      logger.warn(`Update client service - Empty service entries - Client ID: ${client_id}`);
       return res.status(400).json(new ApiResponse(400, {}, "Service entries array is required."));
     }
 
     const client = await Client.findByPk(client_id);
     if (!client) {
+      logger.warn(`Update client service - Client not found - ID: ${client_id}`);
       return res.status(404).json(new ApiResponse(404, {}, "Client not found."));
     }
 
@@ -706,6 +763,7 @@ const updateClientService = async (req, res) => {
 
     for (const entry of service_entries) {
       if (!entry.id) {
+        logger.warn(`Update client service - Missing entry ID - Client ID: ${client_id}`);
         return res.status(400).json(new ApiResponse(400, {}, "Each service entry must include an 'id' to update."));
       }
 
@@ -718,6 +776,7 @@ const updateClientService = async (req, res) => {
       });
 
       if (!existing) {
+        logger.warn(`Update client service - Entry not found - ID: ${entry.id}`);
         return res.status(404).json(new ApiResponse(404, {}, `Service entry with ID ${entry.id} not found.`));
       }
 
@@ -750,10 +809,11 @@ const updateClientService = async (req, res) => {
       updated.push({ id: entry.id, status: "updated" });
     }
 
+    logger.info(`Client services updated successfully - Client ID: ${client_id}, Updated count: ${updated.length}`);
     return res.status(200).json(new ApiResponse(200, updated, "Client service entries updated successfully."));
 
   } catch (err) {
-    console.error("Error updating client service:", err);
+    logger.error(`Error updating client services: ${err.message}`);
     return res.status(500).json(new ApiResponse(500, {}, err.message));
   }
 };
@@ -762,24 +822,29 @@ const updateClientShiftPattern = async (req, res) => {
   try {
     const { client_id, shift_pattern_entries } = req.body;
 
+    logger.info(`Updating shift patterns - Client ID: ${client_id}, Entries: ${shift_pattern_entries?.length || 0}`);
+
     if (!client_id) {
+      logger.warn("Update shift pattern - Missing client ID");
       return res.status(400).json(new ApiResponse(400, {}, "Client ID is required."));
     }
 
     if (!Array.isArray(shift_pattern_entries) || shift_pattern_entries.length === 0) {
+      logger.warn(`Update shift pattern - Empty entries - Client ID: ${client_id}`);
       return res.status(400).json(new ApiResponse(400, {}, "Shift pattern entries array is required."));
     }
 
     const client = await Client.findByPk(client_id);
     if (!client) {
+      logger.warn(`Update shift pattern - Client not found - ID: ${client_id}`);
       return res.status(404).json(new ApiResponse(404, {}, "Client not found."));
     }
 
     let updated = [];
-    // console.log('updated',updated)
 
     for (const entry of shift_pattern_entries) {
       if (entry.sr === undefined || entry.sr === null || entry.sr === "") {
+        logger.warn(`Update shift pattern - Missing sr value - Client ID: ${client_id}`);
         return res.status(400).json(new ApiResponse(400, {}, "Each shift pattern entry must include a non-empty 'sr' value."));
       }
       if (entry.id) {
@@ -792,9 +857,8 @@ const updateClientShiftPattern = async (req, res) => {
           logging: true
         });
 
-        // console.log("existing", existing)
-
         if (!existing) {
+          logger.warn(`Update shift pattern - Entry not found - ID: ${entry.id}`);
           return res.status(404).json(new ApiResponse(404, {}, `Shift pattern entry with ID ${entry.id} not found.`));
         }
 
@@ -809,8 +873,6 @@ const updateClientShiftPattern = async (req, res) => {
           updated_on: new Date()
         };
 
-        console.log('data', data)
-
         const newUpdate = await shift_patterns.update(data, {
           where: {
             id: entry.id,
@@ -819,13 +881,8 @@ const updateClientShiftPattern = async (req, res) => {
           logging: true
         });
 
-        console.log("new entry", entry)
-        console.log('new update', newUpdate);
-
         updated.push({ id: entry.id, status: "updated" });
       } else {
-        console.log("new entry with no id", entry)
-
         const data = {
           sr: entry.sr,
           shift_pattern: entry.shift_pattern,
@@ -839,17 +896,15 @@ const updateClientShiftPattern = async (req, res) => {
         };
 
         const created = await shift_patterns.create(data, { logging: true });
-        // console.log('new created', created);
-
         updated.push({ id: created.id, status: "created" });
       }
-
     }
 
+    logger.info(`Shift patterns updated successfully - Client ID: ${client_id}, Updated count: ${updated.length}`);
     return res.status(200).json(new ApiResponse(200, updated, "Shift pattern entries updated successfully."));
 
   } catch (err) {
-    console.error("Error updating shift pattern:", err);
+    logger.error(`Error updating shift patterns: ${err.message}`);
     return res.status(500).json(new ApiResponse(500, {}, err.message));
   }
 };
@@ -860,13 +915,15 @@ const updateClientPayRate = async (req, res) => {
     const { client_id } = req.query;
     const { payrate_entries } = req.body;
 
-    console.log("payrate_entries", payrate_entries);
+    logger.info(`Updating pay rates - Client ID: ${client_id}, Entries: ${payrate_entries?.length || 0}`);
 
     if (!client_id) {
+      logger.warn("Update pay rate - Missing client ID");
       return res.status(400).json(new ApiResponse(400, {}, "Client ID is required in query parameters."));
     }
 
     if (!Array.isArray(payrate_entries) || payrate_entries.length === 0) {
+      logger.warn(`Update pay rate - Empty entries - Client ID: ${client_id}`);
       return res.status(400).json(new ApiResponse(400, {}, "payrate_entries must be a non-empty array."));
     }
 
@@ -875,13 +932,13 @@ const updateClientPayRate = async (req, res) => {
     for (const entry of payrate_entries) {
       const { id: payrate_id, job_title, ...payload } = entry;
 
-      console.log("Processing entry:", entry);
-
       if (!job_title || job_title === "") {
+        logger.warn(`Update pay rate - Missing job title - Client ID: ${client_id}`);
         return res.status(400).json(new ApiResponse(400, {}, "Each entry must include a non-empty job title."));
       }
 
       if (Object.keys(payload).length === 0) {
+        logger.warn(`Update pay rate - Empty payload - Job Title: ${job_title}`);
         return res.status(400).json(new ApiResponse(400, {}, "Each entry must include fields to update or create."));
       }
 
@@ -894,9 +951,9 @@ const updateClientPayRate = async (req, res) => {
           },
         }
         );
-        console.log("existing", existing)
 
         if (existing) {
+          logger.warn(`Update pay rate - Duplicate job title - Job Title: ${job_title}, Client ID: ${client_id}`);
           return res.status(400).json(
             new ApiResponse(400, {}, `Pay rate for job title '${job_title}' already exists for this client.`));
         }
@@ -910,7 +967,7 @@ const updateClientPayRate = async (req, res) => {
         };
 
         const createdRecord = await Payrate.create(createData);
-        console.log("Created pay rate:", createdRecord?.id);
+        logger.info(`Pay rate created - ID: ${createdRecord?.id}, Job Title: ${job_title}`);
         result.push({ id: createdRecord.id, status: "created" });
       }
       else {
@@ -924,6 +981,7 @@ const updateClientPayRate = async (req, res) => {
         });
 
         if (!payrateRecord) {
+          logger.warn(`Update pay rate - Record not found - ID: ${payrate_id}, Job Title: ${job_title}`);
           return res.status(404).json(new ApiResponse(404, {}, `Pay Rate record not found for ID ${payrate_id}, Client ID ${client_id}, and Job Title '${job_title}'.`));
         }
 
@@ -938,7 +996,7 @@ const updateClientPayRate = async (req, res) => {
           Object.assign(payrateRecord, updateFields);
 
           const deletedRecord = await payrateRecord.save();
-          console.log("Deleted pay rate:", deletedRecord?.id);
+          logger.info(`Pay rate deleted - ID: ${deletedRecord?.id}, Job Title: ${job_title}`);
           result.push({ id: deletedRecord.id, status: "deleted" });
         } else {
           const updateFields = {
@@ -950,15 +1008,16 @@ const updateClientPayRate = async (req, res) => {
           Object.assign(payrateRecord, updateFields);
 
           const updatedRecord = await payrateRecord.save();
-          console.log("Updated pay rate:", updatedRecord?.id);
+          logger.info(`Pay rate updated - ID: ${updatedRecord?.id}, Job Title: ${job_title}`);
           result.push({ id: updatedRecord.id, status: "updated" });
         }
       }
     }
 
+    logger.info(`Pay rates processed successfully - Client ID: ${client_id}, Result count: ${result.length}`);
     return res.status(200).json(new ApiResponse(200, result, "Pay rate entries processed successfully."));
   } catch (err) {
-    console.error("Error processing pay rate entries:", err);
+    logger.error(`Error processing pay rates: ${err.message}`);
     return res.status(500).json(new ApiResponse(500, {}, err.message));
   }
 };

@@ -3,6 +3,7 @@ import { mailConfig } from '../model/mail_config.model.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import mjml2html from 'mjml';
 import { CandidateRegisterDraft } from "../model/candidate_register_draft.model.js";
+import logger from '../logger/logger.js';
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -11,8 +12,11 @@ const mailService = async () => {
     const smtp = await mailConfig.findOne();
 
     if (!smtp) {
+      logger.warn("SMTP configuration not found in database");
       return res.status(500).json({ message: "SMTP configuration not found" });
     }
+
+    logger.info("SMTP configuration fetched successfully");
 
     const transporter = nodemailer.createTransport({
       host: smtp.smtp_host,
@@ -26,7 +30,7 @@ const mailService = async () => {
 
     return { transporter, smtp };
   } catch (error) {
-    console.error("Error in mailService:", error.message);
+    logger.error(`Error in mailService: ${error.message}`);
     // Throw so calling function knows something went wrong
     throw error;
   }
@@ -36,7 +40,10 @@ const sendMail = async (req, res) => {
   const { to, subject, candidate, text } = req.body;
 
   try {
+    logger.info(`Email send request - To: ${to}, Candidate: ${candidate.candidate_name}`);
+
     if (!to || !subject || (!candidate)) {
+      logger.warn(`Email send - Missing required fields - To: ${to}, Subject: ${subject}`);
       return res.status(400).json({ message: "Missing email fields" });
     }
 
@@ -190,11 +197,11 @@ const sendMail = async (req, res) => {
       html
     });
 
-    console.log("Message sent: %s", senMail.messageId);
+    logger.info(`Email sent successfully - To: ${to}, Message ID: ${senMail.messageId}`);
     return res.status(200).json(new ApiResponse(200, senMail, "Email sent successfully", true));
 
   } catch (error) {
-    console.log(error);
+    logger.error(`Error sending email to ${to}: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, "Error while sending email", false, error));
   }
 }
@@ -203,7 +210,10 @@ const sendHireflixMail = async (req, res) => {
   const { to, subject, candidate, text, interviewLink, position } = req.body;
 
   try {
+    logger.info(`Hireflix email send request - To: ${to}, Candidate: ${candidate.candidate_name}, Position: ${position.name}`);
+
     if (!to || !subject || (!candidate)) {
+      logger.warn(`Hireflix email - Missing required fields - To: ${to}, Subject: ${subject}`);
       return res.status(400).json({ message: "Missing email fields" });
     }
 
@@ -354,11 +364,11 @@ const sendHireflixMail = async (req, res) => {
       html
     });
 
-    console.log("Message sent: %s", senMail.messageId);
+    logger.info(`Hireflix email sent successfully - To: ${to}, Message ID: ${senMail.messageId}`);
     return res.status(200).json(new ApiResponse(200, senMail, "Email sent successfully", true));
 
   } catch (error) {
-    console.log(error);
+    logger.error(`Error sending Hireflix email to ${to}: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, "Error while sending email", false, error));
   }
 }
@@ -367,8 +377,10 @@ const sendHireflixMail = async (req, res) => {
 const confirmationMail = async (req, res) => {
   const { to, email, password, name, loginUrl, subject } = req.body;
   try {
+    logger.info(`Confirmation email send request - To: ${to}, Email: ${email}, Name: ${name}`);
 
     if (!email || !password || !name) {
+      logger.warn(`Confirmation email - Missing required fields - Email: ${email}, Name: ${name}`);
       return res.status(400).json({
         success: false,
         message: 'Missing required fields: email, password, name'
@@ -504,24 +516,23 @@ const confirmationMail = async (req, res) => {
       html
     });
 
-    console.log(senMail, to, loginUrl, email, password);
-    console.log("Message sent: %s", senMail.messageId);
+    logger.info(`Confirmation email sent successfully - To: ${to}, Message ID: ${senMail.messageId}`);
     return res.status(200).json(new ApiResponse(200, senMail, "Application Approved Email sent successfully", true));
 
   } catch (error) {
-    console.log(error);
+    logger.error(`Error sending confirmation email to ${to}: ${error.message}`);
     return res.status(500).json(new ApiResponse(500, "Error while sending email", false, error));
   }
 
 }
 
 const sendDraftReminders = async () => {
-  console.log("Draft reminder process started...");
+  logger.info("Draft reminder process started");
 
   try {
     const { transporter, smtp } = await mailService();
 
-    console.log("SMTP config fetched & Nodemailer transporter created successfully ");
+    logger.info("SMTP config fetched & Nodemailer transporter created successfully");
 
     // Fetch drafts
     let drafts;
@@ -529,10 +540,9 @@ const sendDraftReminders = async () => {
       drafts = await CandidateRegisterDraft.findAll({
         where: { is_completed: "0" },
       });
-      console.log(` ${drafts.length} uncompleted drafts fetched `);
+      logger.info(`${drafts.length} uncompleted drafts fetched`);
     } catch (err) {
-      console.error(" Error fetching drafts from database:", err.message);
-      console.error(err);
+      logger.error(`Error fetching drafts from database: ${err.message}`);
       return;
     }
 
@@ -547,7 +557,7 @@ const sendDraftReminders = async () => {
 
         // MAX reminders = 3
         if (draft.reminder_count >= 3) {
-          console.log(`Reminder limit reached for ${draft.email_id}. No more reminders.`);
+          logger.warn(`Reminder limit reached for ${draft.email_id}. No more reminders.`);
           continue;
         }
 
@@ -561,7 +571,7 @@ const sendDraftReminders = async () => {
         }
 
         if (!shouldSend) continue;
-        console.log(`Sending reminder #${draft.reminder_count + 1} to: ${draft.email_id}`);
+        logger.info(`Sending reminder #${draft.reminder_count + 1} to: ${draft.email_id}`);
 
         // Encode values to base64
         const encodeBase64 = (value) => Buffer.from(value || "", "utf8").toString("base64");
@@ -571,7 +581,6 @@ const sendDraftReminders = async () => {
         const encodedCountryCode = encodeBase64(draft.countryCode);
 
         const url = `${process.env.FRONTEND_BASE_URL}/P1Candidate/candidate_registration?name=${encodedName}&email=${encodedEmail}&phone=${encodedPhone}&country=${encodedCountryCode}`;
-        console.log("Final encoded URL:", url);
 
         const mjmlTemplate = `
           <mjml>
@@ -662,10 +671,9 @@ const sendDraftReminders = async () => {
             subject: "Reminder: Complete your registration",
             html,
           });
-          console.log(` Reminder email sent to: ${draft.email_id}`);
+          logger.info(`Reminder email sent to: ${draft.email_id}, Reminder count: ${draft.reminder_count + 1}`);
         } catch (err) {
-          console.error(` Failed to send email to ${draft.email_id}:`, err.message);
-          console.error(err);
+          logger.error(`Failed to send email to ${draft.email_id}: ${err.message}`);
           continue; // continue with next draft
         }
 
@@ -675,21 +683,18 @@ const sendDraftReminders = async () => {
           draft.reminder_count += 1;
           draft.last_reminder_sent = now;
           await draft.save();
-          console.log(`Updated draft table for ${draft.email_id}, reminder_count: ${draft.reminder_count}`);
+          logger.info(`Updated draft table for ${draft.email_id}, reminder_count: ${draft.reminder_count}`);
         } catch (err) {
-          console.error(` Failed to update draft table for ${draft.email_id}:`, err.message);
-          console.error(err);
+          logger.error(`Failed to update draft table for ${draft.email_id}: ${err.message}`);
         }
       } catch (err) {
-      console.error(`Error processing draft for ${draft.email_id}:`, err.message);
-      console.error(err);
+        logger.error(`Error processing draft for ${draft.email_id}: ${err.message}`);
+      }
     }
+    logger.info("Draft reminder process finished");
+  } catch (err) {
+    logger.error(`Unexpected error in sendDraftReminders: ${err.message}`);
   }
-    console.log("Draft reminder process finished!");
-} catch (err) {
-  console.error("Unexpected error in sendDraftReminders:", err.message);
-  console.error(err);
-}
 };
 
 export { sendMail, sendHireflixMail, confirmationMail, sendDraftReminders };

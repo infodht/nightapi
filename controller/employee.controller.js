@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { Employee } from "../model/employee.model.js";
 import { Sequelize } from "sequelize";
+import logger from "../logger/logger.js";
 
 // Generate Prefix Based on Role
 const getPrefixFromRole = (role) => {
@@ -69,12 +70,15 @@ const createEmployee = async (req, res) => {
       created_by
     } = req.body;
 
+    logger.info(`Creating employee with email: ${em_email}, role: ${em_role}`);
+
     // Check if email exists
     const emailExists = await Employee.findOne({
       where: { em_email }
     });
 
     if (emailExists) {
+      logger.warn(`Employee already exists with email: ${em_email}`);
       return res.status(400).json({
         success: false,
         message: "This email is already registered. Please use a different email.",
@@ -114,6 +118,7 @@ const createEmployee = async (req, res) => {
       updated_by: null
     });
 
+    logger.info(`Employee created successfully - ID: ${em_id}, Email: ${em_email}`);
     return res.status(200).json({
       success: true,
       message: "Employee created successfully!",
@@ -121,7 +126,7 @@ const createEmployee = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Error while creating employee:", err);
+    logger.error(`Error creating employee with email ${em_email}: ${err.message}`);
     return res.status(500).json({
       success: false,
       message: "Error while creating employee",
@@ -135,9 +140,12 @@ const updateEmployee = async (req, res) => {
     const { id } = req.params;
     const payload = req.body;
 
+    logger.info(`Updating employee ID: ${id}`);
+
     // Check if employee exists
     const employee = await Employee.findByPk(id);
     if (!employee) {
+      logger.warn(`Employee not found for update - ID: ${id}`);
       return res.status(404).json({
         success: false,
         message: "Employee not found",
@@ -149,6 +157,7 @@ const updateEmployee = async (req, res) => {
 
     for (const field of blockedFields) {
       if (payload[field]) {
+        logger.warn(`Blocked field update attempt for field: ${field}, ID: ${id}`);
         return res.status(400).json({
           success: false,
           message: `You cannot update the field: ${field}`,
@@ -185,6 +194,7 @@ const updateEmployee = async (req, res) => {
     // Save to database
     await employee.update(updateData);
 
+    logger.info(`Employee updated successfully - ID: ${id}`);
     return res.status(200).json({
       success: true,
       message: "Employee updated successfully",
@@ -192,7 +202,7 @@ const updateEmployee = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Error updating employee:", err);
+    logger.error(`Error updating employee ID ${id}: ${err.message}`);
     return res.status(500).json({
       success: false,
       message: "Error updating employee",
@@ -202,17 +212,15 @@ const updateEmployee = async (req, res) => {
 };
 
 const changeEmployeePassword = async (req, res) => {
-  console.log(" Change password API hit");
-
   try {
     const { email } = req.query;
     const { currentPassword, newPassword, confirmPassword } = req.body;
 
-    console.log(" Request received for email:", email);
+    logger.info(`Password change requested for email: ${email}`);
 
     // Basic validation
     if (!email || !currentPassword || !newPassword || !confirmPassword) {
-      console.warn(" Missing required fields");
+      logger.warn(`Password change - missing required fields for email: ${email}`);
       return res.status(400).json({
         success: false,
         message: "Email and all password fields are required",
@@ -223,29 +231,25 @@ const changeEmployeePassword = async (req, res) => {
     const employee = await Employee.findOne({ where: { em_email: email } });
 
     if (!employee) {
-      console.warn(" Employee not found for email:", email);
+      logger.warn(`Password change - employee not found for email: ${email}`);
       return res.status(404).json({
         success: false,
         message: "Employee not found",
       });
     }
 
-    console.log(" Employee found, ID:", employee.em_id);
-
     // Verify current password
     if (createSha1Hash(currentPassword) !== employee.em_password) {
-      console.warn(" Incorrect current password for:", email);
+      logger.warn(`Password change - incorrect current password for email: ${email}`);
       return res.status(400).json({
         success: false,
         message: "Current password is incorrect",
       });
     }
 
-    console.log(" Current password verified");
-
     // New password validations
     if (newPassword !== confirmPassword) {
-      console.warn(" New password & confirm password mismatch");
+      logger.warn(`Password change - new & confirm password mismatch for email: ${email}`);
       return res.status(400).json({
         success: false,
         message: "New password and confirm password do not match",
@@ -253,7 +257,7 @@ const changeEmployeePassword = async (req, res) => {
     }
 
     if (currentPassword === newPassword) {
-      console.warn(" New password same as old password");
+      logger.warn(`Password change - new password same as old password for email: ${email}`);
       return res.status(400).json({
         success: false,
         message: "New password must be different",
@@ -267,7 +271,7 @@ const changeEmployeePassword = async (req, res) => {
       updated_by: req.user?.id || null,
     });
 
-    console.log(" Password updated successfully for:", email);
+    logger.info(`Password changed successfully for email: ${email}`);
 
     return res.status(200).json({
       success: true,
@@ -275,7 +279,7 @@ const changeEmployeePassword = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(" Change Password API Error:", err);
+    logger.error(`Error changing password for employee: ${err.message}`);
     return res.status(500).json({
       success: false,
       message: "Error while changing password",

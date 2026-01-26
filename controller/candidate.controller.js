@@ -10,6 +10,7 @@ import { careFacility } from "../model/care_facility.model.js";
 import { job_title } from "../model/job_title.model.js";
 import { Employee } from "../model/employee.model.js";
 import { Op } from "sequelize";
+import logger from '../logger/logger.js';
 // import {
 //   inviteCandidate,
 //   getPositions,
@@ -63,8 +64,11 @@ const candidateRegister = async (req, res) => {
       w_u_consider
     } = req.body;
 
+    logger.info(`Candidate registration request - Email: ${email_id}, Name: ${candidate_name}`);
+
     // Validation
     if (!candidate_name || !post_code || !address_line_1 || !place || !email_id || !candidate_dob || !passport || !experience || !countryCode || !skills) {
+      logger.warn(`Candidate registration - Missing required fields - Email: ${email_id}`);
       throw new ApiError(400, "All the fields are required");
     }
 
@@ -85,11 +89,13 @@ const candidateRegister = async (req, res) => {
     });
 
     if (existingEmail) {
+      logger.warn(`Candidate registration - Email already exists: ${email_id}`);
       throw new ApiError(409, "Email already registered");
     }
 
     // Create new candidate
     if (!candidateId) {
+      logger.info(`Creating new candidate record - Email: ${email_id}`);
       const newCandidate = await Candidate.create({
         candidateId,
         candidate_name,
@@ -134,12 +140,13 @@ const candidateRegister = async (req, res) => {
         is_deleted: "N",
       });
 
+      logger.info(`Candidate registered successfully - Email: ${email_id}, ID: ${newCandidate.candidateId}`);
       return res
         .status(201)
         .json(new ApiResponse(201, newCandidate, "Successfully Candidate Registered"));
     }
   } catch (error) {
-    console.error(`Candidate registration error: ${error}`);
+    logger.error(`Candidate registration error for email ${email_id}: ${error.message}`);
     return res.status(400).json(new ApiResponse(400, error, `${error.message}`));
   }
 };
@@ -153,6 +160,8 @@ const getAllInfoCandidate = async (req, res) => {
     const offset = (page - 1) * limit;
 
     const search = req.query.search ? req.query.search.trim() : null;
+
+    logger.info(`Fetching all candidates - Page: ${page}, Limit: ${limit}, Search: ${search || 'none'}`);
 
     const whereCondition = {
       is_deleted: { [Op.ne]: "Y" },
@@ -300,6 +309,7 @@ const getAllInfoCandidate = async (req, res) => {
     });
 
     if (!candidates.length) {
+      logger.warn(`No candidates found - Page: ${page}, Search: ${search || 'none'}`);
       throw new ApiError(404, "No candidate info found");
     }
 
@@ -404,6 +414,7 @@ const getAllInfoCandidate = async (req, res) => {
 
     // console.log("result", result);  
 
+    logger.info(`Fetched ${total} candidates successfully - Page: ${page}`);
     return res.status(200).json(
       new ApiResponse(200, {
         total,
@@ -417,6 +428,7 @@ const getAllInfoCandidate = async (req, res) => {
           : "All candidate info fetched successfully")
     );
   } catch (error) {
+    logger.error(`Error fetching candidates: ${error.message}`);
     return res
       .status(500)
       .json(new ApiError(500, error.message, error, error.stack));
@@ -430,12 +442,13 @@ const formAction = async (req, res) => {
     const { id } = req.query;
     const { form_status, position_title, em_password } = req.body;
 
-    console.log(req.body);
+    logger.info(`Form action request - Candidate ID: ${id}, Status: ${form_status}`);
 
     const candidate = await Candidate.findOne({ where: { candidate_id: id }, transaction: t });
 
     if (!candidate) {
       await t.rollback();
+      logger.warn(`Form action - Candidate not found - ID: ${id}`);
       return res.status(404).json(new ApiError(404, "Candidate not found"));
     }
 
@@ -447,6 +460,7 @@ const formAction = async (req, res) => {
 
     if (!validStatuses.includes(form_status)) {
       await t.rollback();
+      logger.warn(`Form action - Invalid form status: ${form_status}`);
       return res.status(400).json(new ApiError(400, {}, "Invalid form_status value"));
     }
 
@@ -460,6 +474,7 @@ const formAction = async (req, res) => {
 
       if (!em_password) {
         await t.rollback();
+        logger.warn(`Form action - Password required for approval - Candidate ID: ${id}`);
         return res.status(400).json({
           success: false,
           message: "Password is required when approving candidate"
@@ -474,11 +489,14 @@ const formAction = async (req, res) => {
 
       if (existingEmp) {
         await t.rollback();
+        logger.warn(`Form action - Candidate already employee: ${candidate.email_id}`);
         return res.status(400).json({
           success: false,
           message: "Candidate already registered as employee"
         });
       }
+
+      logger.info(`Creating employee for approved candidate - Candidate ID: ${id}, Email: ${candidate.email_id}`);
 
       // Generate ID
       const prefix = getPrefixFromRole("CANDIDATE");
@@ -527,6 +545,7 @@ const formAction = async (req, res) => {
     // COMMIT both operations
     await t.commit();
 
+    logger.info(`Form action completed successfully - Candidate ID: ${id}, Status: ${form_status}`);
     return res.status(200).json(
       new ApiResponse(
         200,
@@ -536,7 +555,7 @@ const formAction = async (req, res) => {
     );
 
   } catch (error) {
-    console.error("Error in formAction:", error);
+    logger.error(`Error in form action: ${error.message}`);
     await t.rollback();  // ROLLBACK IF ANY ERROR
     return res
       .status(500)
@@ -637,14 +656,14 @@ const formAction = async (req, res) => {
 
 const refnowGetRequests = async (req, res) => {
   try {
-    console.log("Fetching List of reference requests");
+    logger.info("Fetching list of reference requests from RefNow");
     const requests = await listReferenceRequests();
-    console.log("List of reference requests fetched:", requests);
+    logger.info(`Reference requests fetched successfully - Count: ${requests?.length || 0}`);
 
     return res.status(200)
       .json(new ApiResponse(200, requests, "List of reference requests fetched successfully"));
   } catch (err) {
-    console.error("Error while fetching list of reference requests:", err);
+    logger.error(`Error fetching reference requests: ${err.message}`);
     return res.status(500)
       .json(new ApiError(500, err.message, err, err.stack));
   }
@@ -654,16 +673,16 @@ const refnowGetRequestById = async (req, res) => {
   try {
     const { id } = req.query;
 
-    console.log("Fetching a reference request with rid:", id);
+    logger.info(`Fetching reference request - RID: ${id}`);
 
     const request = await getReferenceRequestById(id);
 
-    console.log("Reference request fetched:", request);
+    logger.info(`Reference request fetched successfully - RID: ${id}`);
 
     return res.status(200)
       .json(new ApiResponse(200, request, "Reference request fetched successfully"));
   } catch (err) {
-    console.error("Error while fetching reference request:", err);
+    logger.error(`Error fetching reference request ${id}: ${err.message}`);
     return res.status(500)
       .json(new ApiError(500, err.message, err, err.stack));
   }
@@ -671,17 +690,17 @@ const refnowGetRequestById = async (req, res) => {
 
 const refnowGetQuestionProfiles = async (req, res) => {
   try {
-    console.log("Fetching Question Profiles from RefNow...");
+    logger.info("Fetching question profiles from RefNow");
 
     const profiles = await getQuestionProfiles();
 
-    console.log("Question Profiles fetched:", profiles?.length || 0);
+    logger.info(`Question profiles fetched successfully - Count: ${profiles?.length || 0}`);
 
     return res
       .status(200)
       .json(new ApiResponse(200, profiles, "Question profiles fetched successfully"));
   } catch (err) {
-    console.error("Error while fetching question profiles:", err);
+    logger.error(`Error fetching question profiles: ${err.message}`);
     return res
       .status(500)
       .json(new ApiError(500, err.message, err, err.stack));
@@ -691,7 +710,7 @@ const refnowGetQuestionProfiles = async (req, res) => {
 const refnowPostNewRequest = async (req, res) => {
   try {
     const requestData = req.body;
-    console.log("Creating a new reference request with payload:", requestData);
+    logger.info(`Creating new reference request - Candidate ID: ${requestData.candidateId}`);
 
     const { candidateId } = requestData;
 
@@ -704,22 +723,22 @@ const refnowPostNewRequest = async (req, res) => {
     if (!requestData.inputprofileid) missingFields.push("inputprofileid");
 
     if (missingFields.length) {
+      logger.warn(`Reference request creation - Missing fields: ${missingFields.join(", ")}`);
       return res.status(400)
         .json(new ApiError(400, { missingFields }, "Error occurred: Missing required fields!"));
     }
 
     if (requestData.inputrefnum < 1 || requestData.inputrefnum > 10) {
+      logger.warn(`Reference request creation - Invalid refnum: ${requestData.inputrefnum}`);
       return res.status(400)
         .json(new ApiError(400, { inputrefnum: requestData.inputrefnum }, "inputrefnum must be between 1 and 10"));
     }
 
     const newRequest = await postNewReferenceRequest(requestData);
-    console.log("Reference request successfully created:", newRequest);
 
     const rid = newRequest?.data?.[0]?.rid;
 
-    console.log("Candidate ID:", candidateId);
-    console.log("RID:", rid);
+    logger.info(`Reference request created - Candidate ID: ${candidateId}, RID: ${rid}`);
 
     if (rid && candidateId) {
       await Candidate.update(
@@ -732,7 +751,7 @@ const refnowPostNewRequest = async (req, res) => {
       .json(new ApiResponse(200, newRequest, "Reference request created successfully"));
 
   } catch (err) {
-    console.error("Error while creating reference request:", err);
+    logger.error(`Error creating reference request: ${err.message}`);
     return res.status(500)
       .json(new ApiError(500, err.message, err, err.stack));
   }
@@ -740,9 +759,9 @@ const refnowPostNewRequest = async (req, res) => {
 
 const refnowGetCreditBalance = async (req, res) => {
   try {
-    console.log("Fetching RefNow Credit Balance...");
+    logger.info("Fetching RefNow credit balance");
     const balance = await getRefNowCreditBalance();
-    console.log("RefNow Credit Balance fetched:", balance);
+    logger.info(`RefNow credit balance fetched - Balance: ${balance.data?.[0]?.totalcreditbal || 0}`);
 
     if (balance.data?.[0].totalcreditbal === 0) {
       return res.status(200)
@@ -751,7 +770,7 @@ const refnowGetCreditBalance = async (req, res) => {
     return res.status(200)
       .json(new ApiResponse(200, balance, "RefNow Credit Balance fetched successfully"));
   } catch (err) {
-    console.error("Error while fetching RefNow Credit Balance:", err);
+    logger.error(`Error fetching RefNow credit balance: ${err.message}`);
     return res.status(500)
       .json(new ApiError(500, err.message, err, err.stack));
   }
@@ -763,11 +782,15 @@ const UpdateCandidateInfo = async (req, res) => {
     const { candidate_id } = req.query;
     const payload = req.body;
 
+    logger.info(`Updating candidate info - Candidate ID: ${candidate_id}`);
+
     if (!candidate_id) {
+      logger.warn("Update candidate - Missing candidate ID");
       return res.status(400).json(new ApiResponse(400, {}, "Candidate ID is required."));
     }
 
     if (Object.keys(payload).length === 0 && !req.uploadedFiles) {
+      logger.warn(`Update candidate - Empty request body - Candidate ID: ${candidate_id}`);
       return res.status(400).json(new ApiResponse(400, {}, "Request body cannot be empty."));
     }
 
@@ -775,6 +798,7 @@ const UpdateCandidateInfo = async (req, res) => {
 
     if (!candidate) {
       await t.rollback();
+      logger.warn(`Update candidate - Candidate not found - ID: ${candidate_id}`);
       return res.status(404).json(new ApiResponse(404, {}, "Candidate not found."));
     }
 
@@ -851,10 +875,11 @@ const UpdateCandidateInfo = async (req, res) => {
     }
 
     await t.commit();
+    logger.info(`Candidate info updated successfully - Candidate ID: ${candidate_id}`);
     return res.status(200).json(new ApiResponse(200, candidate, "Candidate and mapped employee updated successfully."));
   } catch (err) {
     await t.rollback();
-    console.error("Error updating candidate:", err);
+    logger.error(`Error updating candidate ${candidate_id}: ${err.message}`);
     return res.status(500).json(new ApiResponse(500, {}, err.message));
   }
 };
@@ -863,28 +888,23 @@ const getFile = async (req, res) => {
   try {
     const { id } = req.query;
 
-    console.log(`file id ${id}`)
+    logger.info(`Fetching CV file - Candidate ID: ${id}`);
 
     const record = await Candidate.findByPk(id);
     if (!record) {
+      logger.warn(`Get file - Candidate not found - ID: ${id}`);
       return res.status(404).json({ message: "No file found" });
     }
 
-    console.log(`record ${record}`)
-
-    // const folder = record.uploads;
     const fileName = record.upload_cv;
-
-    console.log(`file name , ${fileName}`)
 
     const filePath = path.join(process.cwd(), "attach", "upload_cv", fileName);
 
-    console.log(`filepath ${filePath}`)
-
+    logger.info(`CV file sent - Candidate ID: ${id}, File: ${fileName}`);
     return res.sendFile(filePath);
 
   } catch (error) {
-    console.log(error);
+    logger.error(`Error fetching file: ${error.message}`);
     res.status(500).json({ message: "Error fetching file" });
   }
 };
@@ -892,9 +912,11 @@ const getFile = async (req, res) => {
 const getCandidateInfoById = async (req, res) => {
   try {
     const { candidate_id, profile_id } = req.query;
+    logger.info(`Fetching candidate info - Candidate ID: ${candidate_id || 'N/A'}, Profile ID: ${profile_id || 'N/A'}`);
 
     // ---------------- ID validation ----------------
     if (!candidate_id && !profile_id) {
+      logger.warn("Get candidate info - Missing candidate_id and profile_id");
       return res.status(400).json({
         success: false,
         message: "candidate_id or profile_id is required",
@@ -911,6 +933,7 @@ const getCandidateInfoById = async (req, res) => {
     }
 
     if (!candidate) {
+      logger.warn(`Get candidate info - Candidate not found - Candidate ID: ${candidate_id || 'N/A'}, Profile ID: ${profile_id || 'N/A'}`);
       return res.status(404).json({ success: false, message: "Candidate not found" });
     }
 
@@ -1061,9 +1084,10 @@ const getCandidateInfoById = async (req, res) => {
       interview_completed_at: candidate.interview_completed_at || null
     };
 
+    logger.info(`Candidate info fetched successfully - Candidate ID: ${candidate.candidate_id}`);
     return res.status(200).json({ success: true, data: result });
   } catch (error) {
-    console.error("ERROR:", error);
+    logger.error(`Error fetching candidate info: ${error.message}`);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -1071,8 +1095,10 @@ const getCandidateInfoById = async (req, res) => {
 const getCandidateInfoByEmId = async (req, res) => {
   try {
     const { profile_id } = req.query;
+    logger.info(`Fetching candidate info by EM ID - Profile ID: ${profile_id}`);
 
     if (!profile_id) {
+      logger.warn("Get candidate by EM ID - Missing profile_id");
       return res.status(400).json({ success: false, message: "profile_id is required" });
     }
 
@@ -1093,6 +1119,7 @@ const getCandidateInfoByEmId = async (req, res) => {
     });
 
     if (!candidate) {
+      logger.warn(`Get candidate by EM ID - Candidate not found - Profile ID: ${profile_id}`);
       return res.status(404).json({ success: false, message: "Candidate not found" });
     }
 
@@ -1242,7 +1269,7 @@ const getCandidateInfoByEmId = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("ERROR:", error);
+    logger.error(`Error fetching candidate info by EM ID: ${error.message}`);
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -1255,8 +1282,10 @@ const saveCandidateInterview = async (req, res) => {
 
   try {
     const { candidate_id, interview_questions } = req.body;
+    logger.info(`Saving candidate interview - Candidate ID: ${candidate_id}`);
 
     if (!candidate_id) {
+      logger.warn("Save interview - Missing candidate_id");
       return res.status(400).json({ message: "candidate_id is required" });
     }
 
@@ -1266,6 +1295,7 @@ const saveCandidateInterview = async (req, res) => {
 
     if (!candidate) {
       await t.rollback();
+      logger.warn(`Save interview - Candidate not found - ID: ${candidate_id}`);
       return res.status(404).json({ message: "Candidate not found" });
     }
 
@@ -1275,6 +1305,7 @@ const saveCandidateInterview = async (req, res) => {
      */
     if (candidate.interview_completed_at) {
       await t.rollback();
+      logger.warn(`Save interview - Interview already submitted - Candidate ID: ${candidate_id}`);
       return res.status(400).json({
         message: "Interview already submitted. Updates are not allowed."
       });
@@ -1302,6 +1333,7 @@ const saveCandidateInterview = async (req, res) => {
 
     if (!Array.isArray(videoAnswers) || !videoAnswers.length) {
       await t.rollback();
+      logger.warn(`Save interview - No video answers provided - Candidate ID: ${candidate_id}`);
       return res.status(400).json({
         message: "At least one interview video is required"
       });
@@ -1325,10 +1357,13 @@ const saveCandidateInterview = async (req, res) => {
 
     if (!Array.isArray(parsedQuestions) || !parsedQuestions.length) {
       await t.rollback();
+      logger.warn(`Save interview - Invalid questions format - Candidate ID: ${candidate_id}`);
       return res.status(400).json({
         message: "interview_questions must be a non-empty array"
       });
     }
+
+    logger.info(`Interview validation passed - Candidate ID: ${candidate_id}, Videos: ${videoAnswers.length}`);
 
     /**
      * ✅ Save interview data
@@ -1343,6 +1378,8 @@ const saveCandidateInterview = async (req, res) => {
     await candidate.save({ transaction: t });
     await t.commit();
 
+    logger.info(`Interview saved successfully - Candidate ID: ${candidate_id}`);
+
     return res.status(200).json({
       message: "Interview submitted successfully",
       candidate_id: candidate.candidate_id,
@@ -1354,7 +1391,7 @@ const saveCandidateInterview = async (req, res) => {
 
   } catch (err) {
     await t.rollback();
-    console.error("Interview Save Error:", err);
+    logger.error(`Error saving interview: ${err.message}`);
     return res.status(500).json({ message: err.message });
   }
 };
@@ -1362,8 +1399,10 @@ const saveCandidateInterview = async (req, res) => {
 const getCandidateInterview = async (req, res) => {
   try {
     const { candidate_id } = req.query;
+    logger.info(`Fetching candidate interview - Candidate ID: ${candidate_id}`);
 
     if (!candidate_id) {
+      logger.warn("Get interview - Missing candidate_id");
       return res.status(400).json({
         success: false,
         message: "candidate_id is required"
@@ -1382,6 +1421,7 @@ const getCandidateInterview = async (req, res) => {
     });
 
     if (!candidate) {
+      logger.warn(`Get interview - Candidate not found - ID: ${candidate_id}`);
       return res.status(404).json({
         success: false,
         message: "Candidate not found"
@@ -1390,6 +1430,7 @@ const getCandidateInterview = async (req, res) => {
 
     // Interview not submitted yet
     if (!candidate.interview_completed_at) {
+      logger.info(`Get interview - Interview not yet submitted - Candidate ID: ${candidate_id}`);
       return res.status(200).json({
         success: true,
         interview_completed: false,
@@ -1437,6 +1478,8 @@ const getCandidateInterview = async (req, res) => {
       });
     }
 
+    logger.info(`Interview fetched successfully - Candidate ID: ${candidate_id}, Questions: ${questions.length}, Videos: ${videos.length}`);
+
     return res.status(200).json({
       success: true,
       interview_completed: true,
@@ -1446,7 +1489,7 @@ const getCandidateInterview = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Get Interview Error:", error);
+    logger.error(`Error fetching candidate interview: ${error.message}`);
     return res.status(500).json({
       success: false,
       message: error.message
