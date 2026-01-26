@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
 import FormData from "form-data";
+import logger from "../logger/logger.js";
 
 dotenv.config();
 
@@ -41,16 +42,22 @@ export const upload = multer({
 async function uploadToCloud(file, folder) {
   const key = `${folder}/${uuid()}_${file.originalname}`;
 
-  await cloudClient.send(
-    new PutObjectCommand({
-      Bucket: process.env.CLOUD_BUCKET_NAME,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    })
-  );
+  try {
+    await cloudClient.send(
+      new PutObjectCommand({
+        Bucket: process.env.CLOUD_BUCKET_NAME,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      })
+    );
 
-  return `${process.env.CLOUD_PUBLIC_URL}/${key}`;
+    logger.info(`File uploaded to cloud storage - Folder: ${folder}, File: ${file.originalname}, Size: ${file.size} bytes`);
+    return `${process.env.CLOUD_PUBLIC_URL}/${key}`;
+  } catch (error) {
+    logger.error(`Cloud upload failed - Folder: ${folder}, Error: ${error.message}`);
+    throw error;
+  }
 }
 
 // ------------------- Save file to local storage -------------------
@@ -67,6 +74,7 @@ async function uploadToLocal(file, folder) {
 
   fs.writeFileSync(filePath, file.buffer);
 
+  logger.info(`File uploaded to local storage - Folder: ${folder}, File: ${fileName}`);
   // Keep returning only the filename to preserve existing behavior
   return fileName;
 }
@@ -84,23 +92,29 @@ async function uploadToRemote(file) {
 
   formData.append("project", process.env.REMOTE_PROJECT_NAME);
 
-  const response = await axios.post(
-    `${process.env.REMOTE_UPLOAD_BASE_URL}/api/upload`,
-    formData,
-    {
-      headers: {
-        ...formData.getHeaders(),
-        "X-API-KEY": process.env.REMOTE_UPLOAD_API_KEY,
-      },
-      maxBodyLength: Infinity,
+  try {
+    const response = await axios.post(
+      `${process.env.REMOTE_UPLOAD_BASE_URL}/api/upload`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          "X-API-KEY": process.env.REMOTE_UPLOAD_API_KEY,
+        },
+        maxBodyLength: Infinity,
+      }
+    );
+
+    if (!response.data?.url) {
+      throw new Error("Remote upload failed");
     }
-  );
 
-  if (!response.data?.url) {
-    throw new Error("Remote upload failed");
+    logger.info(`File uploaded to remote storage - File: ${file.originalname}, Size: ${file.size} bytes, URL: ${response.data.url}`);
+    return response.data.url;
+  } catch (error) {
+    logger.error(`Remote upload failed - File: ${file.originalname}, Error: ${error.message}`);
+    throw error;
   }
-
-  return response.data.url;
 }
 
 // --------------------------------------------------
@@ -126,6 +140,8 @@ export const handleUpload = async (req, res, next) => {
   try {
     const uploadedFiles = {};
     const storageType = req.body.storage_type || "local";
+
+    logger.info(`File upload started - Storage Type: ${storageType}`);
 
     // Decide upload handler
     let uploadHandler;
@@ -158,6 +174,8 @@ export const handleUpload = async (req, res, next) => {
 
         uploadedFiles[field].push(result);
       }
+
+      logger.info(`Array upload completed - Field: ${field}, Count: ${req.files.length}`);
     }
 
     /**
@@ -173,6 +191,8 @@ export const handleUpload = async (req, res, next) => {
             storageType === "remote"
               ? await uploadHandler(file)
               : await uploadHandler(file, folder);
+
+          logger.info(`Field upload completed - Field: ${field}, File: ${file.originalname}`);
         }
       }
     }
@@ -180,9 +200,10 @@ export const handleUpload = async (req, res, next) => {
     req.uploadedFiles = uploadedFiles;
     req.storage_type = storageType;
 
+    logger.info(`File upload middleware completed successfully`);
     next();
   } catch (err) {
-    console.error("Upload Error:", err);
+    logger.error(`File upload middleware error: ${err.message}`);
     return res.status(500).json({ error: "File upload failed" });
   }
 };

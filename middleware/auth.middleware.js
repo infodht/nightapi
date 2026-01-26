@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { Employee } from "../model/employee.model.js";
+import logger from "../logger/logger.js";
 
 const authenticateUser = async (req, res, next) => {
   try {
@@ -14,6 +15,7 @@ const authenticateUser = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      logger.warn(`Auth failed - Missing or invalid authorization header from ${req.ip}`);
       return res.status(401).json({ message: "Unauthorized" });
     }
 
@@ -21,11 +23,10 @@ const authenticateUser = async (req, res, next) => {
 
     const decoded = jwt.verify(token, "this is recruite portal json web token secret key");
 
-    // console.log("Decoded Token:", decoded);
-
     const user = await Employee.findOne({ where: { em_id: decoded.id } });
 
     if (!user) {
+      logger.warn(`Auth failed - User ID not found: ${decoded.id}`);
       return res.status(401).json({ message: "id not found Unauthorized" });
     }
 
@@ -36,11 +37,11 @@ const authenticateUser = async (req, res, next) => {
       role: user.role_id
     };
 
-    console.log("Authenticated User:", req.user);
+    logger.info(`User authenticated successfully - ID: ${user.em_id}, Email: ${user.em_email}`);
 
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error);
+    logger.error(`Auth middleware error: ${error.message}`);
     return res.status(401).json({ message: "Unauthorized" });
   }
 };

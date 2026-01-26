@@ -5,6 +5,7 @@ import authenticateUser from "./middleware/auth.middleware.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import candidateRouter from "./routes/candidate.routes.js";
+import logger from "./logger/logger.js";
 import countryCodeRouter from "./routes/country_code.routes.js";
 import jobTitleRouter from "./routes/job_title.routes.js";
 import addressRouter from "./routes/address.routes.js";
@@ -72,12 +73,12 @@ app.use("/api/mail", mailRouter);
 app.use("/api/employee", employeeRouter);
 
 process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception", err);
+  logger.error(`Uncaught Exception: ${err.message}`);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled Rejection", reason);
+  logger.error(`Unhandled Rejection: ${reason}`);
 });
 
 export { app };

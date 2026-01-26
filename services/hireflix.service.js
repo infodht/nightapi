@@ -1,26 +1,34 @@
 import fetch from "node-fetch";
+import logger from "../logger/logger.js";
+
 const HFI_API_URL = "https://api.hireflix.com/me";
 const API_KEY = "0ae0f7df-d2fc-4bcf-9c13-148ed0e04fd4";
 
 async function graphqlRequest(query) {
-  const resp = await fetch(HFI_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-KEY": API_KEY,
-    },
-    body: JSON.stringify({ query }),
-  });
+  try {
+    const resp = await fetch(HFI_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-KEY": API_KEY,
+      },
+      body: JSON.stringify({ query }),
+    });
 
-  const data = await resp.json();
-  if (data.errors) {
-    console.error("GraphQL Error:", data.errors);
-    throw new Error(JSON.stringify(data.errors));
+    const data = await resp.json();
+    if (data.errors) {
+      logger.error(`Hireflix GraphQL error: ${JSON.stringify(data.errors)}`);
+      throw new Error(JSON.stringify(data.errors));
+    }
+    return data.data;
+  } catch (error) {
+    logger.error(`Hireflix request failed: ${error.message}`);
+    throw error;
   }
-  return data.data;
 }
 
 async function inviteCandidate(positionId, firstName, lastName, email, phone) {
+  logger.info(`Hireflix invite - Position: ${positionId}, Email: ${email}`);
   const mutation = `
     mutation {
       Position(id: "${positionId}") {
@@ -41,11 +49,13 @@ async function inviteCandidate(positionId, firstName, lastName, email, phone) {
   `;
 
   const result = await graphqlRequest(mutation);
+  logger.info(`Hireflix invite created - Position: ${positionId}, Email: ${email}`);
   return result.Position.invite;
 }
 
 
 async function getPositions() {
+  logger.info("Hireflix - Fetching positions");
   const query = `
     query {
       positions {
@@ -56,10 +66,12 @@ async function getPositions() {
   `;
 
   const result = await graphqlRequest(query);
+  logger.info("Hireflix - Positions fetched successfully");
   return result.positions;
   }
 
   async function getInterviewData(interviewId) {
+  logger.info(`Hireflix - Fetch interview data - ID: ${interviewId}`);
   const query = `
   query GetInterview{
   interview(id: "${interviewId}") {
@@ -80,10 +92,12 @@ async function getPositions() {
 } `;
 
   const result = await graphqlRequest(query);
+  logger.info(`Hireflix - Interview data fetched - ID: ${interviewId}`);
   return result.interview;
 }
 
 async function updateInterviewFinalist(interviewId, finalist) {
+  logger.info(`Hireflix - Update finalist - ID: ${interviewId}, finalist: ${finalist}`);
   const mutation = `
     mutation {
       Interview(id: "${interviewId}") {
@@ -100,10 +114,12 @@ async function updateInterviewFinalist(interviewId, finalist) {
 
   const variables = { id: interviewId, finalist };
   const result = await graphqlRequest(mutation, variables);
+  logger.info(`Hireflix - Finalist updated - ID: ${interviewId}`);
   return result.Interview.finalist;
 }
 
 async function updateInterviewDiscard(interviewId, archive) {
+  logger.info(`Hireflix - Update archive status - ID: ${interviewId}, archive: ${archive}`);
   const mutation = `
     mutation {
       Interview(id: "${interviewId}") {
@@ -120,6 +136,7 @@ async function updateInterviewDiscard(interviewId, archive) {
 
   const variables = { id: interviewId, archive };
   const result = await graphqlRequest(mutation, variables);
+  logger.info(`Hireflix - Archive updated - ID: ${interviewId}`);
   return result.Interview.archive;
 }
 

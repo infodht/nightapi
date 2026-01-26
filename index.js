@@ -1,20 +1,21 @@
 import { app } from './app.js';
 import { sequelize } from './database/db.connection.js';
+import logger from './logger/logger.js';
 
 sequelize.authenticate()
     .then(() => {
-        console.log('Connection has been established successfully.');
+        logger.info('Database connection established successfully');
     })
     .catch(err => {
-        console.error('Unable to connect to the database:', err);
+        logger.error(`Database connection failed: ${err.message}`);
     });
 
     app.listen(process.env.PORT, () => {
-        console.log(`app listening on port ${process.env.PORT}`)
+        logger.info(`Server listening on port ${process.env.PORT}`);
     })
 
     process.on('SIGINT', async () => {
     await sequelize.close();
-    console.log('Database connection closed.');
+    logger.info('Database connection closed - Server shutdown gracefully');
     process.exit(0);
     });

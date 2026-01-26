@@ -1,5 +1,6 @@
 import { mailConfig } from "../model/mail_config.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import logger from "../logger/logger.js";
 
 const smtpConfig = async(req, res) => {
     const{
@@ -12,9 +13,8 @@ const smtpConfig = async(req, res) => {
         mail_title
     } = req.body;
 
-    // console.log("SMTP Configuration Request Body: ", req.body);
-
     try {
+        logger.info(`SMTP config request - Host: ${host}, User: ${user}`);
 
         const mailConfing = await mailConfig.findOne();
         if(mailConfing){
@@ -29,7 +29,7 @@ const smtpConfig = async(req, res) => {
                 updated_by: req.user,
                 updated_at: new Date()
             });
-            // console.log("SMTP Configuration updated: ", mailConfing);   
+            logger.info("SMTP configuration updated successfully");  
             return res.status(200).json(new ApiResponse(200,{},"SMTP Configuration updated successfully", true));
         }else{
             await mailConfig.create({
@@ -43,11 +43,12 @@ const smtpConfig = async(req, res) => {
                 created_by: req.user,
                 created_on: new Date(),
             })
+            logger.info("SMTP configuration created successfully");
         }
         return res.status(200).json(new ApiResponse(200,mailConfing,"SMTP Configuration saved successfully", true));
         
     } catch (error) {
-        console.log("Error in SMTP Configuration: ", error);
+        logger.error(`Error in SMTP Configuration: ${error.message}`);
         return res.status(500).json(new ApiResponse(500,{}, error, false));
     }
 }

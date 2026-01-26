@@ -12,6 +12,7 @@ cron.schedule('0 2 * * *', () => {
     const logsDir = path.join(__dirname, '../logs');
     
     if (!fs.existsSync(logsDir)) {
+      logger.info('Log cleanup skipped - logs directory not found');
       return;
     }
 
@@ -32,7 +33,7 @@ cron.schedule('0 2 * * *', () => {
       // Delete error.log files older than 30 days
       if (file.includes('error.log') && fileAgeInDays > 30) {
         fs.unlinkSync(filePath);
-        logger.error(`Deleted old error.log: ${file}`);
+        logger.info(`Deleted old error.log: ${file}`);
       }
     });
 
