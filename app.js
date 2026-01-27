@@ -22,6 +22,7 @@ import employeeRouter from "./routes/employee.routes.js";
 
 import "./cronjob/reminder.cron.js";
 import "./cronjob/logCleanup.cron.js";
+import "./cronjob/loginLogCleanup.cron.js";
 
 dotenv.config();
 const app = express();
