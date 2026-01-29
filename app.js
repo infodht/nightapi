@@ -19,6 +19,7 @@ import accessRouter from "./routes/access_controle.routes.js";
 import clientRouter from "./routes/client.routes.js";
 import mailRouter from "./routes/mail.routes.js";
 import employeeRouter from "./routes/employee.routes.js";
+import interviewRouter from "./routes/interview.routes.js";
 
 import "./cronjob/reminder.cron.js";
 import "./cronjob/logCleanup.cron.js";
@@ -48,6 +49,7 @@ app.use('/uploads/cv', express.static(path.join(__dirname, 'attach', 'upload_cv'
 app.use('/uploads/profile', express.static(path.join(__dirname, 'attach', 'uploads')));
 app.use('/uploads/client/logo', express.static(path.join(__dirname, 'attach', 'client', 'logo')));
 app.use('/uploads/client/contract', express.static(path.join(__dirname, 'attach', 'client', 'contract')));
+app.use('/uploads/interview/videos', express.static(path.join(__dirname, 'attach', 'interview', 'videos')));
 
 // public routes
 
@@ -59,6 +61,7 @@ app.use("/api/address", addressRouter);
 app.use("/api/care-facility", careFacilityRouter);
 app.use("/api/skill", skillRouter);
 app.use("/api/client-needs", clientNeedsRouter);
+app.use("/api/interviews", interviewRouter);
 
 // auth middleware (everything below is protected)
 

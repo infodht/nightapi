@@ -50,6 +50,13 @@ router.post(
   candidateRegister
 );
 router.post("/draft/save", saveDraft);
+router.patch(
+  "/candidate/interview",
+  upload.array("interview_video_answers", 10),
+  handleUpload,
+  saveCandidateInterview
+);
+router.route("/candidate/interview").get(getCandidateInterview);
 
 // auth middleware (everything below is protected)
 
@@ -65,12 +72,6 @@ router.put(
     ]),
     handleUpload,
     UpdateCandidateInfo
-);
-router.patch(
-  "/candidate/interview",
-  upload.array("interview_video_answers", 10),
-  handleUpload,
-  saveCandidateInterview
 );
 router.route('/info').get(getAllInfoCandidate);
 router.route('/action').patch(formAction);
@@ -98,6 +99,5 @@ router.route("/menu/list/candidate").get(getMenuList);
 
 router.route("/file").get(getFile);
 router.route('/data').get(getCandidateInfoByEmId);
-router.route("/candidate/interview").get(getCandidateInterview);
 
 export default router;

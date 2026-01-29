@@ -987,7 +987,7 @@ const getCandidateInfoById = async (req, res) => {
         video_answer: interviewVideos[i]
           ? isRemoteOrCloud
             ? interviewVideos[i]
-            : `${baseUrl}/attach/interview/videos/${interviewVideos[i]}`
+            : `${baseUrl}/uploads/interview/videos/${interviewVideos[i]}`
           : null,
       });
     }
@@ -1161,7 +1161,7 @@ const getCandidateInfoByEmId = async (req, res) => {
         video_answer: interviewVideos[i]
           ? isRemoteOrCloud
             ? interviewVideos[i]
-            : `${baseUrl}/attach/interview/videos/${interviewVideos[i]}`
+            : `${baseUrl}/uploads/interview/videos/${interviewVideos[i]}`
           : null,
       });
     }
@@ -1303,7 +1303,13 @@ const saveCandidateInterview = async (req, res) => {
      * ❌ Block re-submission
      * Interview can be submitted ONLY ONCE
      */
-    if (candidate.interview_completed_at) {
+    if (
+      candidate.interview_completed_at &&
+      Array.isArray(candidate.interview_questions) &&
+      candidate.interview_questions.length > 0 &&
+      Array.isArray(candidate.interview_video_answers) &&
+      candidate.interview_video_answers.length > 0
+    ) {
       await t.rollback();
       logger.warn(`Save interview - Interview already submitted - Candidate ID: ${candidate_id}`);
       return res.status(400).json({
@@ -1473,7 +1479,7 @@ const getCandidateInterview = async (req, res) => {
         video_answer: videos[i]
           ? isRemoteOrCloud
             ? videos[i] // cloud / remote → URL already
-            : `${baseUrl}/attach/interview/videos/${videos[i]}`
+            : `${baseUrl}/uploads/interview/videos/${videos[i]}`
           : null
       });
     }

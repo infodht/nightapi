@@ -12,7 +12,7 @@ log4js.configure({
       pattern: "yyyy-MM-dd",
       compress: true,
       keepFileExt: true,
-      daysToKeep: 14
+      numBackups: 30
     },
     errorFile: {
       type: "dateFile",
@@ -20,7 +20,7 @@ log4js.configure({
       pattern: "yyyy-MM-dd",
       compress: true,
       keepFileExt: true,
-      daysToKeep: 30
+      numBackups: 30
     }
   },
   categories: {

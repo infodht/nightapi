@@ -72,75 +72,84 @@ const sendMail = async (req, res) => {
             </mj-style>
           </mj-head>
 
-          <mj-body background-color="#f3f4f6">
+          <mj-body background-color="#FAD2CF">
 
             <!-- HEADER -->
-            <mj-section padding="40px 20px" css-class="header-bg">
+          <mj-section padding="40px 0 20px" background-color="#0A1744">
               <mj-column>
-                <mj-text align="center" color="#ffffff" font-size="28px" font-weight="700">
-                  Application Received
+                <!-- Centered image at the top -->
+                  <mj-image 
+                    src="https://www.nightingale-care.co.uk/_webedit/cached-images/69-0-0-0-10000-10000-340.png" 
+                    alt="Nightingale Logo" 
+                    width="250px" 
+                    align="center" 
+                    padding="0 0 20px 0"
+                  />
+                <!-- Nightingale text -->
+                <mj-text align="center" color="#ffffff" font-size="25px" font-weight="600">
+                 Application Received
                 </mj-text>
               </mj-column>
             </mj-section>
 
             <!-- CARD WRAPPER -->
-            <mj-section background-color="#ffffff" padding="40px 30px" css-class="card-radius">
+            <mj-section background-color="#0A1744" padding="40px 30px" css-class="card-radius">
               <mj-column>
                 <!-- GREETING -->
-                <mj-text font-size="18px" color="#111827" padding="0 0 12px" font-weight="500">
-                  Dear <strong style="color:#2563eb">${candidate.candidate_name}</strong>,
+                <mj-text font-size="18px" color="#dee2e6" padding="0 0 12px" font-weight="500">
+                  Dear <strong style="color:#FE6C5F">${candidate.candidate_name}</strong>,
                 </mj-text>
 
                 <!-- MESSAGE 1 -->
-                <mj-text font-size="15px" color="#4b5563" padding="0 0 18px">
+                <mj-text font-size="15px" color="#dee2e6" padding="0 0 18px">
                   Thank you, you've successfully completed your Part 1 Registration.
                 </mj-text>
 
                 <!-- MESSAGE 2 -->
-                <mj-text font-size="15px" color="#4b5563" padding="0 0 18px">
+                <mj-text font-size="15px" color="#dee2e6" padding="0 0 18px">
                   You are now in the review queue for one of the 300 early-access places in Nightingale Care.
                   Our team will now assess your details, and if you meet the criteria, you will receive another email confirming whether you've secured a spot.
                 </mj-text>
 
                 <!-- MESSAGE 3 -->
-                <mj-text font-size="15px" color="#4b5563" padding="0 0 25px">
+                <mj-text font-size="15px" color="#dee2e6" padding="0 0 25px">
                   At this stage, nothing else is required from you.
                 </mj-text>
 
-                <mj-text font-size="18px" font-weight="600" color="#2563eb" padding="25px 0 15px 0">
+                <mj-text font-size="18px" font-weight="600" color="#dee2e6" padding="25px 0 15px 0">
               What happens next?
             </mj-text>
 
             <mj-table cellpadding="0" cellspacing="0" width="100%">
               <tr>
-                <td style="border-left: 3px solid #2563eb; padding: 15px 0 10px 15px;">
-                  <strong style="color:#111827; font-size:15px;">1. Review Phase</strong><br/>
-                  <span style="color:#4b5563; font-size:15px;">Your details are reviewed by our onboarding team</span>
+                <td style="border-left: 3px solid #FE6C5F; padding: 15px 0 10px 15px;">
+                  <strong style="color:#dee2e6; font-size:15px;">1. Review Phase</strong><br/>
+                  <span style="color:#DBDBDB; font-size:15px;">Your details are reviewed by our onboarding team</span>
                 </td>
               </tr>
               <tr>
-                <td style="border-left: 3px solid #2563eb; padding: 10px 0 10px 15px;">
-                  <strong style="color:#111827; font-size:15px;">2. Confirmation</strong><br/>
-                  <span style="color:#4b5563; font-size:15px;">If successful, you will receive a confirmation email for early access</span>
+                <td style="border-left: 3px solid #FE6C5F; padding: 10px 0 10px 15px;">
+                  <strong style="color:#dee2e6; font-size:15px;">2. Confirmation</strong><br/>
+                  <span style="color:#DBDBDB; font-size:15px;">If successful, you will receive a confirmation email for early access</span>
                 </td>
               </tr>
               <tr>
-                <td style="border-left: 3px solid #2563eb; padding: 10px 0 25px 15px;">
-                  <strong style="color:#111827; font-size:15px;">3. Next Steps</strong><br/>
-                  <span style="color:#4b5563; font-size:15px;">If selected, you will be invited to complete the next step</span>
+                <td style="border-left: 3px solid #FE6C5F; padding: 10px 0 25px 15px;">
+                  <strong style="color:#dee2e6; font-size:15px;">3. Next Steps</strong><br/>
+                  <span style="color:#DBDBDB; font-size:15px;">If selected, you will be invited to complete the next step</span>
                 </td>
               </tr>
             </mj-table>
 
-                <mj-text font-size="15px" color="#4b5563" padding="0 0 25px">
+                <mj-text font-size="14px" color="#DBDBDB" padding="0 0 25px">
                   <em>Please note: completing Part 1 does not guarantee one of the 300 places, but you are now officially in the review process.</em>
                 </mj-text>
 
                 <!-- CLOSING -->
-                <mj-text font-size="15px" color="#4b5563" padding="0 0 8px">
+                <mj-text font-size="15px" color="#DBDBDB" padding="0 0 8px">
                   Thank you for applying,
                 </mj-text>
-                <mj-text font-size="15px" color="#111827" font-weight="600" padding="0">
+                <mj-text font-size="15px" color="#DBDBDB" font-weight="600" padding="0">
                   Nightingale Care Team
                 </mj-text>
 
@@ -148,24 +157,24 @@ const sendMail = async (req, res) => {
             </mj-section>
 
             <!-- APPLICATION SUMMARY -->
-            <mj-section background-color="#f9fafb" padding="30px" css-class="card-radius">
+            <mj-section background-color="#0A1744" padding="30px" css-class="card-radius">
               <mj-column>
-                <mj-text font-size="18px" font-weight="600" color="#111827" padding="0 0 12px">
+                <mj-text font-size="18px" font-weight="600" color="#DBDBDB" padding="0 0 12px">
                   📋 Your Application Details
                 </mj-text>
 
                 <mj-table cellpadding="0" cellspacing="0" width="100%">
                   <tr>
                     <td style="padding: 8px 0; color:#6b7280; width:150px;">Name</td>
-                    <td style="padding: 8px 0; color:#111827; font-weight:500;">${candidate.candidate_name}</td>
+                    <td style="padding: 8px 0; color:#DBDBDB; font-weight:500;">${candidate.candidate_name}</td>
                   </tr>
                   <tr>
                     <td style="padding: 8px 0; color:#6b7280;">Email</td>
-                    <td style="padding: 8px 0; color:#111827; font-weight:500;">${candidate.email_id || "-"}</td>
+                    <td style="padding: 8px 0; color:#DBDBDB; font-weight:500;">${candidate.email_id || "-"}</td>
                   </tr>
                   <tr>
                     <td style="padding: 8px 0; color:#6b7280;">Mobile</td>
-                    <td style="padding: 8px 0; color:#111827; font-weight:500;">${candidate.mobile_number || "-"}</td>
+                    <td style="padding: 8px 0; color:#DBDBDB; font-weight:500;">${candidate.mobile_number || "-"}</td>
                   </tr>
                 </mj-table>
 
@@ -238,7 +247,7 @@ const sendHireflixMail = async (req, res) => {
           </mj-style>
         </mj-head>
 
-        <mj-body background-color="#f8fafc">
+        <mj-body background-color="#FAD2CF">
 
           <!-- Preheader -->
           <mj-section padding="0">
@@ -250,28 +259,37 @@ const sendHireflixMail = async (req, res) => {
           </mj-section>
 
           <!-- Header -->
-          <mj-section css-class="gradient-bg" padding="40px 0">
-            <mj-column>
-              <mj-text align="center" color="#ffffff" font-size="24px" font-weight="700" padding="0">
-                🎥 Video Interview Invitation
-              </mj-text>
-            </mj-column>
-          </mj-section>
+          <mj-section padding="40px 0 20px" background-color="#0A1744">
+              <mj-column>
+                <!-- Centered image at the top -->
+                  <mj-image 
+                    src="https://www.nightingale-care.co.uk/_webedit/cached-images/69-0-0-0-10000-10000-340.png" 
+                    alt="Nightingale Logo" 
+                    width="250px" 
+                    align="center" 
+                    padding="0 0 20px 0"
+                  />
+                <!-- Nightingale text -->
+                <mj-text align="center" color="#ffffff" font-size="25px" font-weight="600" style="white-space: nowrap;">
+                 Video Interview Invitation
+                </mj-text>
+              </mj-column>
+            </mj-section>
 
           <!-- Main Content -->
-          <mj-section background-color="#ffffff" padding="40px 30px" border-radius="12px">
+          <mj-section background-color="#0A1744" padding="40px 30px">
             <mj-column>
-              <mj-text font-size="18px" color="#1f2937">
-                Hi <strong style="color:#10b981">${candidate.candidate_name}</strong>,
+              <mj-text font-size="18px" color="#ffff">
+                Hi <strong style="color:#FE6C5F">${candidate.candidate_name}</strong>,
               </mj-text>
 
-              <mj-text font-size="16px" color="#4b5563">
-                Thank you for your interest in the <strong>${position.name}</strong> position at RDKi Group! . We look forward to learning more about you.
+              <mj-text font-size="16px" color="#ffff">
+                Thank you for your interest in the <strong>${position.name}</strong> position at Nightingale Group! . We look forward to learning more about you.
               </mj-text>
 
-              <mj-divider border-color="#e5e7eb" border-width="1px" padding="20px 0" />
+              <mj-divider border-color="#ffff" border-width="1px" padding="20px 0" />
 
-              <mj-text font-size="16px" color="#4b5563" font-weight="600">
+              <mj-text font-size="16px" color="#ffff" font-weight="600">
                 Next Step: Brief video interview
               </mj-text>
 
@@ -280,13 +298,13 @@ const sendHireflixMail = async (req, res) => {
               </mj-text>
 
               <!-- Important Info Box -->
-              <mj-wrapper background-color="#f0fdf4" border="1px solid #bbf7d0" border-radius="8px" padding="20px 25px" margin="20px 0">
+              <mj-wrapper background-color="#FE6C5F" border="1px solid #ff474c" border-radius="8px" padding="20px 25px" margin="20px 0">
                 <mj-section padding="0">
                   <mj-column>
-                    <mj-text font-size="14px" color="#065f46" font-weight="600">
+                    <mj-text font-size="14px" color="#ffff" font-weight="600">
                       ⏰ Important Details:
                     </mj-text>
-                    <mj-text font-size="13px" color="#047857">
+                    <mj-text font-size="13px" color="#ffff">
                       • Complete within <strong>48 hours</strong><br/>
                       • Use Chrome browser (Safari on iPhone)<br/>
                       • Find a quiet, well-lit space<br/>
@@ -299,10 +317,10 @@ const sendHireflixMail = async (req, res) => {
               <!-- CTA Button -->
               <mj-section padding="10px 0">
                 <mj-column>
-                  <mj-button href="${interviewLink}" align="center">
-                    🎬 Start Video Interview
+                  <mj-button href="${interviewLink}" align="center" background-color="#FE6C5F">
+                    Start Video Interview
                   </mj-button>
-                  <mj-text font-size="13px" color="#6b7280" align="center" padding="10px 0 0">
+                  <mj-text font-size="13px" color="#ffff" align="center" padding="10px 0 0">
                     Estimated time: 10–15 minutes
                   </mj-text>
                 </mj-column>
@@ -310,19 +328,19 @@ const sendHireflixMail = async (req, res) => {
 
               <mj-divider border-color="#e5e7eb" border-width="1px" padding="20px 0" />
 
-              <mj-text font-size="15px" color="#4b5563">
+              <mj-text font-size="15px" color="#ffff">
                 If you encounter any technical issues or have questions, please don't hesitate to reach out to our team.
               </mj-text>
 
-              <mj-text font-size="16px" color="#1f2937" font-weight="600">
+              <mj-text font-size="16px" color="#fff" font-weight="600">
                 Best regards,<br/>
-                <span style="color: #10b981;">The RDKi Group Team</span>
+                <span style="color: #FE6C5F;">Nightingale Group</span>
               </mj-text>
             </mj-column>
           </mj-section>
 
           <!-- Tips Section -->
-          <mj-section background-color="#f8fafc" padding="20px 30px">
+          <mj-section background-color="#FAD2CF" padding="20px 30px">
             <mj-column>
               <mj-text font-size="14px" font-weight="600" color="#374151">
                 💡 Interview Tips:
@@ -339,11 +357,11 @@ const sendHireflixMail = async (req, res) => {
           <!-- Footer -->
           <mj-section padding="30px 30px 20px">
             <mj-column>
-              <mj-divider border-color="#e5e7eb" border-width="1px" padding="0 0 20px" />
+              <mj-divider border-color="#666" border-width="1px" padding="0 0 20px" />
               <mj-text align="center" color="#9ca3af" font-size="12px" line-height="1.5">
-                This message was sent by RDKi Group.<br/>
+                This message was sent by Nightingale Group.<br/>
                 If you didn't expect this email, please ignore it or contact us.<br/>
-                &copy; 2025 RDKi Group Ltd. All rights reserved.
+                &copy; 2025 Nightingale Group Ltd. All rights reserved.
               </mj-text>
             </mj-column>
           </mj-section>
@@ -405,28 +423,34 @@ const confirmationMail = async (req, res) => {
           </mj-attributes>
         </mj-head>
 
-        <mj-body background-color="#f6f9fc">
+        <mj-body background-color="#FAD2CF">
           <!-- Header Section -->
-          <mj-section padding="40px 0 20px" background-color="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
-            <mj-column>
-              <mj-text align="center" color="#ffffff" font-size="32px" font-weight="700" padding="10px 0">
-                Rdki Group
-              </mj-text>
-              <mj-text align="center" color="#ffffff" font-size="24px" font-weight="600" padding="10px 0 0">
-                Your Account is Ready!
-              </mj-text>
-            </mj-column>
-          </mj-section>
+        <mj-section padding="40px 0 20px" background-color="#0A1744">
+              <mj-column>
+                <!-- Centered image at the top -->
+                  <mj-image 
+                    src="https://www.nightingale-care.co.uk/_webedit/cached-images/69-0-0-0-10000-10000-340.png" 
+                    alt="Nightingale Logo" 
+                    width="250px" 
+                    align="center" 
+                    padding="0 0 20px 0"
+                  />
+                <!-- Nightingale text -->
+                <mj-text align="center" color="#ffffff" font-size="25px" font-weight="600" style="white-space: nowrap;">
+                 Account Creadentials
+                </mj-text>
+              </mj-column>
+            </mj-section>
 
           <!-- Main Content -->
-          <mj-section padding="20px 0" background-color="#ffffff">
+          <mj-section background-color="#0A1744" padding="20px 0">
             <mj-column padding="0 40px">
               <!-- Greeting -->
-              <mj-text padding="10px 0 20px" font-size="16px" color="#333333">
+              <mj-text padding="10px 0 20px" font-size="16px" color="white">
                 Hello <strong>${name}</strong>,
               </mj-text>
 
-              <mj-text padding="10px 0" font-size="16px" color="#333333">
+              <mj-text padding="10px 0" font-size="16px" color="white">
                 Your account has been successfully created. Here are your login credentials:
               </mj-text>
 
@@ -452,7 +476,7 @@ const confirmationMail = async (req, res) => {
               </mj-section>
 
               <!-- Security Notice -->
-              <mj-section background-color="#fff3cd" border="1px solid #ffeaa7" border-radius="8px" padding="15px">
+               <mj-section background-color="#fff3cd" border="1px solid #ffeaa7" border-radius="8px" padding="15px">
                 <mj-column>
                   <mj-text padding="0" font-size="14px" color="#856404">
                     <strong>🔒 Security Notice:</strong> For your security, we recommend changing your password after first login and never sharing your credentials with anyone.
@@ -461,12 +485,11 @@ const confirmationMail = async (req, res) => {
               </mj-section>
 
               <!-- Login Button -->
-              <mj-text padding="20px 0 10px" font-size="16px" color="#333333">
+              <mj-text padding="20px 0 10px" font-size="16px" color="white">
                 You can access your account using the button below:
               </mj-text>
 
-              <mj-button background-color="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
-                        color="#ffffff" 
+              <mj-button background-color="#FE6C5F" color="#ffffff"
                         font-weight="600" 
                         border-radius="6px" 
                         padding="16px 32px"
@@ -477,7 +500,7 @@ const confirmationMail = async (req, res) => {
               <!-- Security Tips -->
               <mj-section padding="20px 0 0">
                 <mj-column>
-                  <mj-text padding="0" font-size="14px" color="#6c757d">
+                  <mj-text padding="0" font-size="14px" color="white">
                     <strong>Security Tips:</strong><br />
                     • Change your password regularly<br />
                     • Use a strong, unique password<br />
@@ -490,14 +513,14 @@ const confirmationMail = async (req, res) => {
           </mj-section>
 
           <!-- Footer -->
-          <mj-section background-color="#f8f9fa" padding="30px 40px" border-top="1px solid #e9ecef">
+         <mj-section background-color="#FAD2CF" padding="20px 0">
             <mj-column>
               <mj-text align="center" color="#6c757d" font-size="14px" padding="0 0 10px">
                 If you have any questions, please contact our support team at 
                 <a href="mailto:enquiries@nightingale-care.co.uk" style="color: #667eea; text-decoration: none;">enquiries@nightingale-care.co.uk</a>
               </mj-text>
-              <mj-text align="center" color="#6c757d" font-size="14px" padding="10px 0">
-                &copy; ${new Date().getFullYear()} RDKi Group Ltd. All rights reserved.
+              <mj-text align="center" color="#888" font-size="12px" padding="10px 0">
+                © ${new Date().getFullYear()} Nightingale Care. All rights reserved.
               </mj-text>
             </mj-column>
           </mj-section>

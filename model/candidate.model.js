@@ -4,6 +4,7 @@ import { client_needs } from "./client_needs.model.js";
 import { skills } from "./skills.model.js";
 import { careFacility } from "./care_facility.model.js";
 import { job_title } from "./job_title.model.js";
+import { CandidateInterview } from "./candidate_interview.model.js";
 
 const Candidate = sequelize.define("candidate_register", {
   candidate_id: {
@@ -101,5 +102,11 @@ Candidate.belongsTo(client_needs, { foreignKey: "client_need", as: "clientNeed" 
 Candidate.belongsTo(skills, { foreignKey: "skills", as: "skill" });
 Candidate.belongsTo(careFacility, { foreignKey: "care_facility", as: "facility" });
 Candidate.belongsTo(job_title, { foreignKey: "job_title", as: "titles"  });
+
+Candidate.hasMany(CandidateInterview, {
+  foreignKey: "candidate_id",
+  sourceKey: "candidate_id",
+  as: "candidate_interview"
+});
 
 export { Candidate };
