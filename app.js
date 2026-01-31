@@ -20,6 +20,7 @@ import clientRouter from "./routes/client.routes.js";
 import mailRouter from "./routes/mail.routes.js";
 import employeeRouter from "./routes/employee.routes.js";
 import interviewRouter from "./routes/interview.routes.js";
+import interviewQuestionsRouter from "./routes/interview_questions.routes.js";
 
 import "./cronjob/reminder.cron.js";
 import "./cronjob/logCleanup.cron.js";
@@ -62,6 +63,7 @@ app.use("/api/care-facility", careFacilityRouter);
 app.use("/api/skill", skillRouter);
 app.use("/api/client-needs", clientNeedsRouter);
 app.use("/api/interviews", interviewRouter);
+app.use("/api/interview-questions", interviewQuestionsRouter);
 
 // auth middleware (everything below is protected)
 
