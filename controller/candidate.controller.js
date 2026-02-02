@@ -296,7 +296,6 @@ const getAllInfoCandidate = async (req, res) => {
         "storage_type",
         "form_status",
         "created_on",
-        "position_title",
         "refnow_id",
         "created_by",
         "updated_on",
@@ -402,7 +401,6 @@ const getAllInfoCandidate = async (req, res) => {
         other_detail: c.other_detail,
         status: c.status,
         form_status: c.form_status,
-        position_title: c.position_title,
         refnow_id: c.refnow_id,
         created_on: c.created_on,
         created_by: c.created_by,
@@ -442,7 +440,7 @@ const formAction = async (req, res) => {
 
   try {
     const { id } = req.query;
-    const { form_status, position_title, em_password } = req.body;
+    const { form_status, em_password } = req.body;
 
     logger.info(`Form action request - Candidate ID: ${id}, Status: ${form_status}`);
 
@@ -467,8 +465,6 @@ const formAction = async (req, res) => {
     }
 
     const updateData = { form_status };
-
-    if (position_title) updateData.position_title = position_title;
 
     // When APPROVED → Create Employee + Link
 
@@ -960,40 +956,6 @@ const getCandidateInfoById = async (req, res) => {
       candidate.storage_type === "cloud" ||
       candidate.storage_type === "remote";
 
-    // ---------------- Interview data mapping ----------------
-    let interviewQuestions = [];
-    let interviewVideos = [];
-
-    try {
-      interviewQuestions = candidate.interview_questions
-        ? JSON.parse(candidate.interview_questions)
-        : [];
-    } catch {
-      interviewQuestions = [];
-    }
-
-    try {
-      interviewVideos = candidate.interview_video_answers
-        ? JSON.parse(candidate.interview_video_answers)
-        : [];
-    } catch {
-      interviewVideos = [];
-    }
-
-    const interviewData = [];
-    const maxLength = Math.max(interviewQuestions.length, interviewVideos.length);
-
-    for (let i = 0; i < maxLength; i++) {
-      interviewData.push({
-        question: interviewQuestions[i] || null,
-        video_answer: interviewVideos[i]
-          ? isRemoteOrCloud
-            ? interviewVideos[i]
-            : `${baseUrl}/uploads/interview/videos/${interviewVideos[i]}`
-          : null,
-      });
-    }
-
     const result = {
       candidate_id: candidate.candidate_id,
       em_id: candidate.em_id,
@@ -1073,7 +1035,6 @@ const getCandidateInfoById = async (req, res) => {
       other_detail: candidate.other_detail,
       status: candidate.status,
       form_status: candidate.form_status,
-      position_title: candidate.position_title,
       refnow_id: candidate.refnow_id,
       created_on: candidate.created_on,
       created_by: candidate.created_by,
@@ -1082,8 +1043,6 @@ const getCandidateInfoById = async (req, res) => {
       is_deleted: candidate.is_deleted,
       deleted_on: candidate.deleted_on,
       deleted_by: candidate.deleted_by,
-      interview_data: interviewData,
-      interview_completed_at: candidate.interview_completed_at || null
     };
 
     logger.info(`Candidate info fetched successfully - Candidate ID: ${candidate.candidate_id}`);
@@ -1130,44 +1089,6 @@ const getCandidateInfoByEmId = async (req, res) => {
     // ✅ Defensive storage handling
     const storageType = candidate.storage_type || "local";
     const isRemoteOrCloud = ["cloud", "remote"].includes(storageType);
-
-    // ---------------- Interview data ----------------
-    let interviewQuestions = [];
-    let interviewVideos = [];
-
-    try {
-      interviewQuestions = candidate.interview_questions
-        ? JSON.parse(candidate.interview_questions)
-        : [];
-    } catch {
-      interviewQuestions = [];
-    }
-
-    try {
-      interviewVideos = candidate.interview_video_answers
-        ? JSON.parse(candidate.interview_video_answers)
-        : [];
-    } catch {
-      interviewVideos = [];
-    }
-
-    const interviewData = [];
-    const maxLength = Math.max(
-      interviewQuestions.length,
-      interviewVideos.length
-    );
-
-    for (let i = 0; i < maxLength; i++) {
-      interviewData.push({
-        question: interviewQuestions[i] || null,
-        video_answer: interviewVideos[i]
-          ? isRemoteOrCloud
-            ? interviewVideos[i]
-            : `${baseUrl}/uploads/interview/videos/${interviewVideos[i]}`
-          : null,
-      });
-    }
-
     // ---------------- Response mapping ----------------
     const result = {
       candidate_id: candidate.candidate_id,
@@ -1251,7 +1172,6 @@ const getCandidateInfoByEmId = async (req, res) => {
       other_detail: candidate.other_detail,
       status: candidate.status,
       form_status: candidate.form_status,
-      position_title: candidate.position_title,
       refnow_id: candidate.refnow_id,
       created_on: candidate.created_on,
       created_by: candidate.created_by,
@@ -1260,9 +1180,6 @@ const getCandidateInfoByEmId = async (req, res) => {
       is_deleted: candidate.is_deleted,
       deleted_on: candidate.deleted_on,
       deleted_by: candidate.deleted_by,
-
-      interview_data: interviewData,
-      interview_completed_at: candidate.interview_completed_at || null,
     };
 
     return res.status(200).json({
@@ -1405,6 +1322,13 @@ const saveCandidateInterview = async (req, res) => {
     });
 
     await CandidateInterview.bulkCreate(interviewRecords, { transaction: t });
+
+    // Update candidate_register to mark interview as completed
+    await Candidate.update(
+      { interview_completed: "1" },
+      { where: { candidate_id }, transaction: t }
+    );
+
     await t.commit();
 
     logger.info(`Interview saved successfully - Candidate ID: ${candidate_id}, Interview ID: ${interview_id}`);
@@ -1415,6 +1339,7 @@ const saveCandidateInterview = async (req, res) => {
       interview_id,
       storage_type: storageType,
       saved_count: interviewRecords.length,
+      interview_completed: "1"
     });
 
   } catch (err) {
@@ -1526,7 +1451,7 @@ const getCandidateInterview = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      interview_completed: true,
+      interview_completed: candidate.interview_completed,
       interview_completed_at: interviewCompletedAt,
       interview_data: interviewData
     });

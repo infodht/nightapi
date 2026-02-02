@@ -75,11 +75,7 @@ const Candidate = sequelize.define("candidate_register", {
 
   status: DataTypes.ENUM("0", "1"),
   form_status: DataTypes.ENUM("PENDING", "APPROVED", "REJECTED", "FIRST_APPROVED"),
-
-  position_title: DataTypes.STRING,
-  interview_questions: DataTypes.JSON,
-  interview_video_answers: DataTypes.JSON,
-  interview_completed_at: DataTypes.DATE,
+  interview_completed: DataTypes.ENUM("0", "1"),
   storage_type: {
     type: DataTypes.ENUM("local", "cloud", "remote"),
     allowNull: true, // matches DB
