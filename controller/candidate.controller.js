@@ -1,4 +1,6 @@
 import { Candidate } from "../model/candidate.model.js";
+import { CandidateInterview } from "../model/candidate_interview.model.js";
+import { InterviewQuestion } from "../model/interview_questions.model.js";
 import { sequelize } from "../database/db.connection.js";
 import crypto from "crypto";
 import path from 'path';
@@ -1281,12 +1283,17 @@ const saveCandidateInterview = async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-    const { candidate_id, interview_questions } = req.body;
-    logger.info(`Saving candidate interview - Candidate ID: ${candidate_id}`);
+    const { candidate_id, interview_id, interview_questions } = req.body;
+    logger.info(`Saving candidate interview - Candidate ID: ${candidate_id}, Interview ID: ${interview_id}`);
 
     if (!candidate_id) {
       logger.warn("Save interview - Missing candidate_id");
       return res.status(400).json({ message: "candidate_id is required" });
+    }
+
+    if (!interview_id) {
+      logger.warn("Save interview - Missing interview_id");
+      return res.status(400).json({ message: "interview_id is required" });
     }
 
     const candidate = await Candidate.findByPk(candidate_id, {
@@ -1299,43 +1306,25 @@ const saveCandidateInterview = async (req, res) => {
       return res.status(404).json({ message: "Candidate not found" });
     }
 
-    /**
-     * ❌ Block re-submission
-     * Interview can be submitted ONLY ONCE
-     */
-    if (
-      candidate.interview_completed_at &&
-      Array.isArray(candidate.interview_questions) &&
-      candidate.interview_questions.length > 0 &&
-      Array.isArray(candidate.interview_video_answers) &&
-      candidate.interview_video_answers.length > 0
-    ) {
+    // Prevent re-submission for same interview
+    const existingInterview = await CandidateInterview.findOne({
+      where: { candidate_id, interview_id, is_deleted: "N" },
+      transaction: t
+    });
+
+    if (existingInterview) {
       await t.rollback();
-      logger.warn(`Save interview - Interview already submitted - Candidate ID: ${candidate_id}`);
+      logger.warn(`Save interview - Interview already submitted - Candidate ID: ${candidate_id}, Interview ID: ${interview_id}`);
       return res.status(400).json({
-        message: "Interview already submitted. Updates are not allowed."
+        message: "Interview already submitted for this interview_id. Updates are not allowed."
       });
     }
 
-    /**
-     * ---------------- STORAGE TYPE HANDLING ----------------
-     * Rule:
-     * - If UI sends storage_type → use it (explicit)
-     * - Else → keep existing (implicit)
-     * - Default → local
-     */
-    const storageType =
-      req.storage_type || candidate.storage_type || "local";
+    // Storage type
+    const storageType = req.storage_type || "local";
 
-    /**
-     * 🎥 Interview video answers
-     * Comes from handleUpload:
-     * local  → filename
-     * cloud  → URL
-     * remote → URL
-     */
-    const videoAnswers =
-      req.uploadedFiles?.interview_video_answers || [];
+    // Uploaded videos
+    const videoAnswers = req.uploadedFiles?.interview_video_answers || [];
 
     if (!Array.isArray(videoAnswers) || !videoAnswers.length) {
       await t.rollback();
@@ -1345,10 +1334,7 @@ const saveCandidateInterview = async (req, res) => {
       });
     }
 
-    /**
-     * ❓ Interview questions
-     * Can come as JSON string or array
-     */
+    // Parse interview questions
     let parsedQuestions = [];
 
     try {
@@ -1369,30 +1355,66 @@ const saveCandidateInterview = async (req, res) => {
       });
     }
 
-    logger.info(`Interview validation passed - Candidate ID: ${candidate_id}, Videos: ${videoAnswers.length}`);
+    if (videoAnswers.length !== parsedQuestions.length) {
+      await t.rollback();
+      logger.warn(`Save interview - Video and question count mismatch - Candidate ID: ${candidate_id}`);
+      return res.status(400).json({
+        message: "interview_questions and interview_video_answers must have the same length"
+      });
+    }
 
-    /**
-     * ✅ Save interview data
-     */
-    candidate.interview_questions = parsedQuestions;           // stored as array / JSON
-    candidate.interview_video_answers = videoAnswers;          // filenames or URLs
-    candidate.storage_type = storageType;                      // 🔑 IMPORTANT
-    candidate.interview_completed_at = new Date();
-    candidate.updated_on = new Date();
-    candidate.updated_by = req.user?.id || null;
+    const missingVideo = videoAnswers.findIndex(video => !video);
+    if (missingVideo !== -1) {
+      await t.rollback();
+      logger.warn(`Save interview - Missing video for question index ${missingVideo} - Candidate ID: ${candidate_id}`);
+      return res.status(400).json({
+        message: "Each interview question must have a corresponding video"
+      });
+    }
 
-    await candidate.save({ transaction: t });
+    const missingQuestionId = parsedQuestions.find(question =>
+      !(question?.interview_question_id ?? question?.id ?? question?.question_id)
+    );
+
+    if (missingQuestionId) {
+      await t.rollback();
+      logger.warn(`Save interview - Missing interview_question_id - Candidate ID: ${candidate_id}`);
+      return res.status(400).json({
+        message: "Each interview question must include interview_question_id"
+      });
+    }
+
+    logger.info(`Interview validation passed - Candidate ID: ${candidate_id}, Interview ID: ${interview_id}, Videos: ${videoAnswers.length}`);
+
+    const interviewRecords = parsedQuestions.map((question, index) => {
+      const interviewQuestionId =
+        question?.interview_question_id ?? question?.id ?? question?.question_id;
+
+      return {
+        candidate_id,
+        interview_id,
+        interview_question_id: interviewQuestionId,
+        question_answer: question?.question_answer ?? question?.answer ?? question?.transcription ?? null,
+        question_video_url: videoAnswers[index] ?? question?.question_video_url ?? question?.video_url ?? null,
+        storage_type: storageType,
+        created_on: new Date(),
+        created_by: req.user?.id || null,
+        status: "1",
+        is_deleted: "N"
+      };
+    });
+
+    await CandidateInterview.bulkCreate(interviewRecords, { transaction: t });
     await t.commit();
 
-    logger.info(`Interview saved successfully - Candidate ID: ${candidate_id}`);
+    logger.info(`Interview saved successfully - Candidate ID: ${candidate_id}, Interview ID: ${interview_id}`);
 
     return res.status(200).json({
       message: "Interview submitted successfully",
-      candidate_id: candidate.candidate_id,
+      candidate_id,
+      interview_id,
       storage_type: storageType,
-      interview_questions: candidate.interview_questions,
-      interview_video_answers: candidate.interview_video_answers,
-      interview_completed_at: candidate.interview_completed_at
+      saved_count: interviewRecords.length,
     });
 
   } catch (err) {
@@ -1404,8 +1426,8 @@ const saveCandidateInterview = async (req, res) => {
 
 const getCandidateInterview = async (req, res) => {
   try {
-    const { candidate_id } = req.query;
-    logger.info(`Fetching candidate interview - Candidate ID: ${candidate_id}`);
+    const { candidate_id, interview_id } = req.query;
+    logger.info(`Fetching candidate interview - Candidate ID: ${candidate_id}, Interview ID: ${interview_id}`);
 
     if (!candidate_id) {
       logger.warn("Get interview - Missing candidate_id");
@@ -1415,17 +1437,7 @@ const getCandidateInterview = async (req, res) => {
       });
     }
 
-    const candidate = await Candidate.findOne({
-      where: { candidate_id },
-      attributes: [
-        "candidate_id",
-        "storage_type",
-        "interview_questions",
-        "interview_video_answers",
-        "interview_completed_at"
-      ]
-    });
-
+    const candidate = await Candidate.findByPk(candidate_id);
     if (!candidate) {
       logger.warn(`Get interview - Candidate not found - ID: ${candidate_id}`);
       return res.status(404).json({
@@ -1434,9 +1446,22 @@ const getCandidateInterview = async (req, res) => {
       });
     }
 
-    // Interview not submitted yet
-    if (!candidate.interview_completed_at) {
-      logger.info(`Get interview - Interview not yet submitted - Candidate ID: ${candidate_id}`);
+    const whereClause = { candidate_id, is_deleted: "N" };
+    if (interview_id) {
+      whereClause.interview_id = interview_id;
+    }
+
+    const interviewRows = await CandidateInterview.findAll({
+      where: whereClause,
+      order: [
+        ["interview_id", "ASC"],
+        ["interview_question_id", "ASC"],
+        ["id", "ASC"]
+      ]
+    });
+
+    if (!interviewRows || interviewRows.length === 0) {
+      logger.info(`Get interview - No interview records - Candidate ID: ${candidate_id}`);
       return res.status(200).json({
         success: true,
         interview_completed: false,
@@ -1446,51 +1471,63 @@ const getCandidateInterview = async (req, res) => {
 
     const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-    // ✅ Defensive storage handling
-    const storageType = candidate.storage_type || "local";
-    const isRemoteOrCloud = ["cloud", "remote"].includes(storageType);
+    // Load questions for mapping (supports both composite key and raw ID usage)
+    const interviewIds = [...new Set(interviewRows.map(row => row.interview_id))];
+    let questionMapByComposite = new Map();
+    let questionMapById = new Map();
 
-    // ---------------- Parse stored data safely ----------------
-    let questions = [];
-    let videos = [];
+    if (interviewIds.length) {
+      const questions = await InterviewQuestion.findAll({
+        where: {
+          interview_id: { [Op.in]: interviewIds },
+          is_deleted: "N"
+        }
+      });
 
-    try {
-      questions = Array.isArray(candidate.interview_questions)
-        ? candidate.interview_questions
-        : JSON.parse(candidate.interview_questions || "[]");
-    } catch {
-      questions = [];
-    }
-
-    try {
-      videos = Array.isArray(candidate.interview_video_answers)
-        ? candidate.interview_video_answers
-        : JSON.parse(candidate.interview_video_answers || "[]");
-    } catch {
-      videos = [];
-    }
-
-    const interviewData = [];
-    const maxLength = Math.max(questions.length, videos.length);
-
-    for (let i = 0; i < maxLength; i++) {
-      interviewData.push({
-        question: questions[i] || null,
-        video_answer: videos[i]
-          ? isRemoteOrCloud
-            ? videos[i] // cloud / remote → URL already
-            : `${baseUrl}/uploads/interview/videos/${videos[i]}`
-          : null
+      questions.forEach(q => {
+        questionMapByComposite.set(`${q.interview_id}:${q.interview_question_id}`, q.interview_question);
+        questionMapById.set(String(q.id), q.interview_question);
       });
     }
 
-    logger.info(`Interview fetched successfully - Candidate ID: ${candidate_id}, Questions: ${questions.length}, Videos: ${videos.length}`);
+    const interviewData = interviewRows.map(row => {
+      const storageType = row.storage_type || "local";
+      const isRemoteOrCloud = ["cloud", "remote"].includes(storageType);
+      const videoUrl = row.question_video_url
+        ? isRemoteOrCloud
+          ? row.question_video_url
+          : `${baseUrl}/uploads/interview/videos/${row.question_video_url}`
+        : null;
+
+      const questionText =
+        questionMapByComposite.get(`${row.interview_id}:${row.interview_question_id}`) ||
+        questionMapById.get(String(row.interview_question_id)) ||
+        null;
+
+      return {
+        candidate_id: row.candidate_id,
+        interview_id: row.interview_id,
+        interview_question_id: row.interview_question_id,
+        interview_question: questionText,
+        question_answer: row.question_answer ?? null,
+        video_answer: videoUrl,
+        storage_type: storageType,
+        created_on: row.created_on || null
+      };
+    });
+
+    const interviewCompletedAt = interviewRows.reduce((latest, row) => {
+      if (!latest) return row.created_on || null;
+      if (!row.created_on) return latest;
+      return new Date(row.created_on) > new Date(latest) ? row.created_on : latest;
+    }, null);
+
+    logger.info(`Interview fetched successfully - Candidate ID: ${candidate_id}, Records: ${interviewRows.length}`);
 
     return res.status(200).json({
       success: true,
       interview_completed: true,
-      storage_type: storageType,
-      interview_completed_at: candidate.interview_completed_at,
+      interview_completed_at: interviewCompletedAt,
       interview_data: interviewData
     });
 
