@@ -2,6 +2,7 @@ import { Roles } from "../model/role.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Employee } from '../model/employee.model.js';
 import logger from '../logger/logger.js';
+import * as cache from '../services/cache/cache.service.js';
 
 const employees = await Employee.findAll({
     attributes: ["role_id"]
@@ -28,6 +29,10 @@ const createRoles = async (req, res) => {
             insert_by: req.user?.id || null,
             insert_on: new Date()
         })
+
+        await cache.del("master:roles:all");
+        await cache.delPattern("access:permissions:*");
+        await cache.delPattern("access:sidebar:*");
 
         logger.info(`Role created successfully: ${roleName} (ID: ${role.id})`);
         return res.status(200).json(new ApiResponse(200, role, 'role created successfully'))
@@ -64,6 +69,10 @@ const updateRoles = async (req, res) => {
         role.updated_by = req.user?.id || null;
         await role.save();
 
+        await cache.del("master:roles:all");
+        await cache.delPattern("access:permissions:*");
+        await cache.delPattern("access:sidebar:*");
+
         logger.info(`Role updated successfully - ID: ${id}`);
         return res
             .status(200)
@@ -81,6 +90,14 @@ const updateRoles = async (req, res) => {
 const getRole = async (req, res) => {
     try {
         logger.info('Fetching all roles');
+        
+        const cacheKey = "master:roles:all";
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info("Returning cached roles");
+            return res.status(200).json(cachedData);
+        }
+        
         const roles = await Roles.findAll();
 
         if (roles.length === 0) {
@@ -89,7 +106,9 @@ const getRole = async (req, res) => {
         }
 
         logger.info(`Retrieved ${roles.length} roles`);
-        return res.status(200).json({ message: "Roles fetched successfully", roles });
+        const response = { message: "Roles fetched successfully", roles };
+        await cache.set(cacheKey, response, 3600);
+        return res.status(200).json(response);
 
     } catch (error) {
         logger.error(`Error fetching roles: ${error.message}`);
@@ -123,6 +142,10 @@ const deleteRole = async (req, res) => {
         role.deleted_on = new Date();
         role.is_deleted = "Y";
         await role.save();
+
+        await cache.del("master:roles:all");
+        await cache.delPattern("access:permissions:*");
+        await cache.delPattern("access:sidebar:*");
 
         logger.info(`Role deleted successfully - ID: ${id}`);
         return res.status(200).json(new ApiResponse(200, role, "Role deleted successfully"));

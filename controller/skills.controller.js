@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { Op } from 'sequelize';
 import logger from '../logger/logger.js';
+import * as cache from '../services/cache/cache.service.js';
 
 
 const createSkills = async(req, res) => {
@@ -28,6 +29,9 @@ const createSkills = async(req, res) => {
             created_on: new Date()
         })
 
+        // Invalidate cache after creation
+        await cache.del("master:skills:all");
+
         logger.info(`Skill created successfully: ${skillName} (ID: ${title.id})`);
         return res.status(200).json(new ApiResponse(200,title,'Skill added successfully'))
     } catch (error) {
@@ -39,10 +43,26 @@ const createSkills = async(req, res) => {
 const getAllSkills = async(req, res) => {
     try {
         logger.info('Fetching all skills');
+        
+        // Check cache first
+        const cacheKey = "master:skills:all";
+        const cachedData = await cache.get(cacheKey);
+        
+        if (cachedData) {
+          logger.info("Returning cached skills");
+          return res.status(200).json(cachedData);
+        }
+
         const skill = await skills.findAll();
 
         logger.info(`Retrieved ${skill.length} skills`);
-        return res.status(200).json(new ApiResponse(200, skill, "Care Facility Fetched Successfully"));
+        
+        const response = new ApiResponse(200, skill, "Skills Fetched Successfully");
+        
+        // Cache for 24 hours (master data is static)
+        await cache.set(cacheKey, response, 86400);
+        
+        return res.status(200).json(response);
     } catch (error) {
         logger.error(`Error fetching skills: ${error.message}`);
         return res.status(500).json(new ApiError(500, error.message, error, error.stack))
@@ -83,6 +103,9 @@ const updateSkills =  async(req, res) => {
     skill.updated_on = new Date();
     await skill.save();
 
+    // Invalidate cache after update
+    await cache.del("master:skills:all");
+
     logger.info(`Skill updated successfully - ID: ${id}`);
     return res
       .status(200)
@@ -114,6 +137,9 @@ const deleteSkills = async(req, res) => {
         skill.deleted_on = new Date();
         skill.is_deleted = "Y";
         const deleteSkill = await skill.save();
+        
+        // Invalidate cache after deletion
+        await cache.del("master:skills:all");
 
         logger.info(`Skill deleted successfully - ID: ${id}`);
      return res.status(200).json({

@@ -1,4 +1,5 @@
 import logger from '../logger/logger.js';
+import * as cache from '../services/cache/cache.service.js';
 
 const API_KEY = 'aeutsuADWEGuLtAUHzNvrw42963';
 
@@ -6,11 +7,18 @@ const address = async(req, res) => {
     const { postcode } = req.params;
   try {
     logger.info(`Address search requested for postcode: ${postcode}`);
+    const cacheKey = `address:autocomplete:${postcode}`;
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Returning cached address suggestions for postcode: ${postcode}`);
+      return res.json(cachedData);
+    }
     const response = await fetch(
       `https://api.getaddress.io/autocomplete/${postcode}?api-key=${API_KEY}`
     );
     const data = await response.json();
     logger.info(`Address suggestions fetched for postcode: ${postcode}`);
+    await cache.set(cacheKey, data, 86400);
     res.json(data);
   } catch (err) {
     logger.error(`Failed to fetch address for postcode ${postcode}: ${err.message}`);

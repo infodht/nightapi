@@ -1,5 +1,6 @@
 import { candidateMenu } from "../model/candidate_menu.model.js";
 import logger from '../logger/logger.js';
+import * as cache from "../services/cache/cache.service.js";
 
 const createMenu = async (req, res) => {
     try {
@@ -38,6 +39,8 @@ const createMenu = async (req, res) => {
     
          });
 
+         await cache.del("menus:candidate:all");
+
          logger.info(`Candidate menu created successfully: ${menuName} (ID: ${menu.id})`);
          return res.status(201).json({ message: "Candidate menu created successfully", menu });
     } catch (error) {
@@ -49,6 +52,13 @@ const createMenu = async (req, res) => {
 const getMenuList = async(req, res) => {
     try {
         logger.info('Fetching all candidate menus');
+
+        const cacheKey = "menus:candidate:all";
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info("Returning cached candidate menus");
+            return res.status(200).json(cachedData);
+        }
         
         const data = await candidateMenu.findAll({
         // order: [['menu_sequence', 'ASC']], 
@@ -63,7 +73,9 @@ const getMenuList = async(req, res) => {
 
         // console.log("Fetched Menus:", menu);
         logger.info(`Retrieved ${data.length} candidate menus`);
-        return res.status(200).json({message: "Candidate Menu list fetched successfully", data});
+        const response = { message: "Candidate Menu list fetched successfully", data };
+        await cache.set(cacheKey, response, 600);
+        return res.status(200).json(response);
 
         
     } catch (error) {

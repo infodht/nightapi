@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { Op } from 'sequelize';
 import logger from '../logger/logger.js';
+import * as cache from '../services/cache/cache.service.js';
 
 const createClientNeeds = async(req, res) => {
 
@@ -26,6 +27,9 @@ const createClientNeeds = async(req, res) => {
             created_on: new Date()
         })
 
+        // Invalidate cache after creation
+        await cache.del("master:client_needs:all");
+
         logger.info(`Client need created successfully: ${clientNeedsName} (ID: ${care.id})`);
         return res.status(200).json(new ApiResponse(200,care,'Client Needs added successfully'))
     } catch (error) {
@@ -37,10 +41,26 @@ const createClientNeeds = async(req, res) => {
 const getAllNeeds = async(req, res) => {
     try {
         logger.info('Fetching all client needs');
+        
+        // Check cache first
+        const cacheKey = "master:client_needs:all";
+        const cachedData = await cache.get(cacheKey);
+        
+        if (cachedData) {
+          logger.info("Returning cached client needs");
+          return res.status(200).json(cachedData);
+        }
+
         const clientNeeds = await client_needs.findAll();
 
         logger.info(`Retrieved ${clientNeeds.length} client needs`);
-        return res.status(200).json(new ApiResponse(200, clientNeeds, "Client Needs Fetched Successfully"));
+        
+        const response = new ApiResponse(200, clientNeeds, "Client Needs Fetched Successfully");
+        
+        // Cache for 24 hours (master data is static)
+        await cache.set(cacheKey, response, 86400);
+        
+        return res.status(200).json(response);
     } catch (error) {
         logger.error(`Error fetching client needs: ${error.message}`);
         return res.status(500).json(new ApiError(500, error.message, error, error.stack))
@@ -81,6 +101,9 @@ const updateClientNeeds =  async(req, res) => {
     clientNeeds.updated_on = new Date();
     await clientNeeds.save();
 
+    // Invalidate cache after update
+    await cache.del("master:client_needs:all");
+
     logger.info(`Client need updated successfully - ID: ${id}`);
     return res
       .status(200)
@@ -112,6 +135,9 @@ const deleteClientNeeds = async(req, res) => {
         clientClientNeeds.deleted_on = new Date();
         clientClientNeeds.is_deleted = "Y";
         const deleteFacility = await clientClientNeeds.save();
+        
+        // Invalidate cache after deletion
+        await cache.del("master:client_needs:all");
 
         logger.info(`Client need deleted successfully - ID: ${id}`);
      return res.status(200).json({

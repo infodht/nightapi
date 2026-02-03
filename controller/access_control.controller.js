@@ -3,6 +3,7 @@ import { Roles } from "../model/role.model.js";
 import { Menu } from "../model/menu.model.js";
 import { Op } from "sequelize";
 import logger from "../logger/logger.js";
+import * as cache from "../services/cache/cache.service.js";
 
 const createPermission = async (req, res) => {
   try {
@@ -35,6 +36,8 @@ const createPermission = async (req, res) => {
       start_time,
       end_time,
       })
+      await cache.delPattern("access:permissions:*");
+      await cache.delPattern("access:sidebar:*");
       logger.info(`Permission updated successfully for role_id: ${role_id}, menu_id: ${menu_id}`);
       return res
       .status(201)
@@ -51,6 +54,9 @@ const createPermission = async (req, res) => {
       start_time,
       end_time,
     });
+
+    await cache.delPattern("access:permissions:*");
+    await cache.delPattern("access:sidebar:*");
 
     logger.info(`Permission created successfully - role_id: ${role_id}, menu_id: ${menu_id}`);
     return res
@@ -70,6 +76,13 @@ const getPermissionById = async (req, res) => {
     const { roleId } = req.query;
     logger.info(`Fetching permissions for roleId: ${roleId}`);
 
+    const cacheKey = `access:permissions:${roleId}`;
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Returning cached permissions for roleId: ${roleId}`);
+      return res.status(200).json(cachedData);
+    }
+
     const permission = await Permission.findAll({
     where: { role_id: roleId },
     include: [
@@ -84,7 +97,9 @@ const getPermissionById = async (req, res) => {
     }
 
     logger.info(`Retrieved ${permission.length} permissions for roleId: ${roleId}`);
-    return res.status(200).json({ permission });
+    const response = { permission };
+    await cache.set(cacheKey, response, 1800);
+    return res.status(200).json(response);
   } catch (error) {
     logger.error(`Error fetching permissions for roleId: ${error.message}`);
     return res
@@ -102,6 +117,14 @@ const getSidebarMenuByRole = async (req, res) => {
     }
 
     logger.info(`Fetching sidebar menu for roleId: ${roleId}`);
+    
+    const cacheKey = `access:sidebar:${roleId}`;
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      logger.info(`Returning cached sidebar menu for roleId: ${roleId}`);
+      return res.status(200).json(cachedData);
+    }
+    
     try {
         const permissions = await Permission.findAll({
             where: {
@@ -151,11 +174,13 @@ const getSidebarMenuByRole = async (req, res) => {
             }));
 
         logger.info(`Sidebar menu fetched successfully for roleId: ${roleId}`);
-        return res.status(200).json({
+        const response = {
             success: true,
             message: "Menu list fetched successfully",
             data: menuList,
-        });
+        };
+        await cache.set(cacheKey, response, 1800);
+        return res.status(200).json(response);
 
     } catch (error) {
         logger.error(`Error getting sidebar menu for roleId ${roleId}: ${error.message}`);
@@ -171,6 +196,14 @@ const getSidebarMenuByRole = async (req, res) => {
 const getAllMenuPermissions = async (req, res) => {
     try {
         logger.info('Fetching all menu permissions');
+        
+        const cacheKey = "access:permissions:all:menus";
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info("Returning cached menu permissions");
+            return res.status(200).json(cachedData);
+        }
+        
         const menuPermissions = await Menu.findAll({
             include: [
                 {
@@ -224,7 +257,9 @@ const getAllMenuPermissions = async (req, res) => {
 
         // console.log("formattedMenu",formattedMenu)
         logger.info(`Retrieved ${menuPermissions.length} menus with permissions`);
-        return res.status(200).json({ success: true, data: formattedMenu });
+        const response = { success: true, data: formattedMenu };
+        await cache.set(cacheKey, response, 3600);
+        return res.status(200).json(response);
 
     } catch (error) {
         logger.error(`Error fetching menu permissions: ${error.message}`);

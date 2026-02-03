@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { Op } from 'sequelize';
 import logger from '../logger/logger.js';
+import * as cache from '../services/cache/cache.service.js';
 
 const createJobTitle = async(req, res) => {
 
@@ -27,6 +28,9 @@ const createJobTitle = async(req, res) => {
             created_on: new Date()
         })
 
+        // Invalidate cache after creation
+        await cache.del("master:job_titles:all");
+
         logger.info(`Job title created successfully: ${titleName} (ID: ${title.id})`);
         return res.status(200).json(new ApiResponse(200,title,'Job title added successfully'))
     } catch (error) {
@@ -38,10 +42,26 @@ const createJobTitle = async(req, res) => {
 const getJobTitle = async(req, res) => {
     try {
         logger.info('Fetching all job titles');
+        
+        // Check cache first
+        const cacheKey = "master:job_titles:all";
+        const cachedData = await cache.get(cacheKey);
+        
+        if (cachedData) {
+          logger.info("Returning cached job titles");
+          return res.status(200).json(cachedData);
+        }
+
         const jobTitles = await job_title.findAll();
 
         logger.info(`Retrieved ${jobTitles.length} job titles`);
-        return res.status(200).json(new ApiResponse(200, jobTitles, "Job Title Fetched Successfully"));
+        
+        const response = new ApiResponse(200, jobTitles, "Job Title Fetched Successfully");
+        
+        // Cache for 24 hours (master data is static)
+        await cache.set(cacheKey, response, 86400);
+        
+        return res.status(200).json(response);
     } catch (error) {
         logger.error(`Error fetching job titles: ${error.message}`);
         return res.status(500).json(new ApiError(500, error.message, error, error.stack))
@@ -83,6 +103,9 @@ const updateJobTitle =  async(req, res) => {
     title.updated_on = new Date() ;
     await title.save();
 
+    // Invalidate cache after update
+    await cache.del("master:job_titles:all");
+
     logger.info(`Job title updated successfully - ID: ${id}`);
     return res
       .status(200)
@@ -115,6 +138,9 @@ const deleteJobTitle = async(req, res) => {
         title.is_deleted = "Y";
 
      const deleteTitle = await title.save();
+     
+     // Invalidate cache after deletion
+     await cache.del("master:job_titles:all");
 
      logger.info(`Job title deleted successfully - ID: ${id}`);
      return res.status(200).json({

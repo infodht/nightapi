@@ -1,5 +1,6 @@
 import { Menu } from '../model/menu.model.js';
 import logger from '../logger/logger.js';
+import * as cache from '../services/cache/cache.service.js';
 
 const createMenu = async (req, res) => {
     try {
@@ -38,6 +39,9 @@ const createMenu = async (req, res) => {
             sequence
          });
 
+         await cache.del("menus:master:all");
+         await cache.delPattern("access:sidebar:*");
+
          logger.info(`Menu created successfully: ${menuName} (ID: ${menu.id})`);
          return res.status(201).json({ message: "Menu created successfully", menu });
     } catch (error) {
@@ -51,6 +55,13 @@ const getMenuList = async(req, res) => {
     try {
         logger.info('Fetching all menus');
         
+        const cacheKey = "menus:master:all";
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info("Returning cached menus");
+            return res.status(200).json(cachedData);
+        }
+        
         const menu = await Menu.findAll({
         order: [['menu_sequence', 'ASC']], 
         include: [
@@ -63,7 +74,9 @@ const getMenuList = async(req, res) => {
         });
 
         logger.info(`Retrieved ${menu.length} menus`);
-        return res.status(200).json({message: "Menu list fetched successfully", menu});
+        const response = {message: "Menu list fetched successfully", menu};
+        await cache.set(cacheKey, response, 3600);
+        return res.status(200).json(response);
 
         
     } catch (error) {
@@ -102,6 +115,9 @@ const updateMenu = async(req, res) => {
             where: { id }
         });
 
+        await cache.del("menus:master:all");
+        await cache.delPattern("access:sidebar:*");
+
         logger.info(`Menu updated successfully - ID: ${id}`);
         return res.status(200).json({message: "Menu updated successfully", update});
         
@@ -125,6 +141,9 @@ const deleteMenu = async(req, res) => {
 
         const deleted = await menu.save();
         
+        await cache.del("menus:master:all");
+        await cache.delPattern("access:sidebar:*");
+        
         logger.info(`Menu deleted successfully - ID: ${id}`);
         return res.status(201).json({message: "Menu deleted successfully", deleted});
 
@@ -137,6 +156,13 @@ const deleteMenu = async(req, res) => {
 const getParents = async(req, res) => {
     try {
         logger.info('Fetching all parent menus');
+        
+        const cacheKey = "menus:parents:all";
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info("Returning cached parent menus");
+            return res.status(200).json(cachedData);
+        }
 
         const menu = await Menu.findAll({
             attributes: ['parent'],
@@ -144,7 +170,9 @@ const getParents = async(req, res) => {
         });
 
         logger.info(`Retrieved ${menu.length} parent menus`);
-        return res.status(200).json({message: "Parents fetched successfully", menu});
+        const response = {message: "Parents fetched successfully", menu};
+        await cache.set(cacheKey, response, 3600);
+        return res.status(200).json(response);
         
     } catch (error) {
         logger.error(`Error fetching parent menus: ${error.message}`);

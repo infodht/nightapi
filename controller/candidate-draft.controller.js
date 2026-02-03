@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { sendDraftReminders } from "../controller/mail.controller.js";
 import logger from "../logger/logger.js";
+import * as cache from "../services/cache/cache.service.js";
 
 // Save a new draft
 const saveDraft = async (req, res) => {
@@ -25,6 +26,8 @@ const saveDraft = async (req, res) => {
             created_on: new Date()
         });
 
+        await cache.delPattern("drafts:*");
+
         logger.info(`Draft saved successfully for email: ${email_id}`);
         return res.status(201).json(new ApiResponse(201, draft, "Draft saved successfully."));
     } catch (error) {
@@ -39,6 +42,13 @@ const getDraftByEmailId = async (req, res) => {
         const { email_id } = req.query;
         logger.info(`Fetching draft for email: ${email_id}`);
 
+        const cacheKey = `drafts:email:${email_id}`;
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info(`Returning cached draft for email: ${email_id}`);
+            return res.status(200).json(cachedData);
+        }
+
         const draft = await CandidateRegisterDraft.findOne({ where: { email_id } });
         if (!draft) {
             logger.warn(`Draft not found for email: ${email_id}`);
@@ -46,7 +56,9 @@ const getDraftByEmailId = async (req, res) => {
         }
 
         logger.info(`Draft fetched successfully for email: ${email_id}`);
-        return res.status(200).json(new ApiResponse(200, draft, "Draft fetched successfully."));
+        const response = new ApiResponse(200, draft, "Draft fetched successfully.");
+        await cache.set(cacheKey, response, 300);
+        return res.status(200).json(response);
     } catch (error) {
         logger.error(`Error fetching draft for email ${email_id}: ${error.message}`);
         return res.status(500).json(new ApiError(500, error.message, error, error.stack));
@@ -57,9 +69,17 @@ const getDraftByEmailId = async (req, res) => {
 const getAllDrafts = async (req, res) => {
     try {
         logger.info('Fetching all candidate drafts');
+        const cacheKey = "drafts:all";
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info("Returning cached all drafts");
+            return res.status(200).json(cachedData);
+        }
         const drafts = await CandidateRegisterDraft.findAll();
         logger.info(`Retrieved ${drafts.length} drafts`);
-        return res.status(200).json(new ApiResponse(200, drafts, "All drafts fetched successfully."));
+        const response = new ApiResponse(200, drafts, "All drafts fetched successfully.");
+        await cache.set(cacheKey, response, 300);
+        return res.status(200).json(response);
     } catch (error) {
         logger.error(`Error fetching all drafts: ${error.message}`);
         return res.status(500).json(new ApiError(500, error.message, error, error.stack));
@@ -70,15 +90,21 @@ const getAllDrafts = async (req, res) => {
 const getPendingDrafts = async (req, res) => {
     try {
         logger.info('Fetching all pending drafts');
+        const cacheKey = "drafts:pending";
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info("Returning cached pending drafts");
+            return res.status(200).json(cachedData);
+        }
         const drafts = await CandidateRegisterDraft.findAll({
             where: {
                 is_completed: '0' // ENUM value
             }
         });
         logger.info(`Retrieved ${drafts.length} pending drafts`);
-        return res.status(200).json(
-            new ApiResponse(200, drafts, "Pending (not completed) drafts fetched successfully.")
-        );
+        const response = new ApiResponse(200, drafts, "Pending (not completed) drafts fetched successfully.");
+        await cache.set(cacheKey, response, 300);
+        return res.status(200).json(response);
     } catch (error) {
         logger.error(`Error fetching pending drafts: ${error.message}`);
         return res.status(500).json(
@@ -128,6 +154,8 @@ const updateDraft = async (req, res) => {
         draft.updated_on = new Date();
 
         await draft.save();
+
+        await cache.delPattern("drafts:*");
 
         logger.info(`Draft updated successfully for email: ${email_id}`);
         return res.status(200).json(new ApiResponse(200, draft, "Candidate draft updated and registered successfully."));

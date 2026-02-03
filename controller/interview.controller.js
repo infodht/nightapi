@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Op } from "sequelize";
 import logger from "../logger/logger.js";
+import * as cache from "../services/cache/cache.service.js";
 
 // ==================== CREATE INTERVIEW ====================
 const createInterview = async (req, res) => {
@@ -34,6 +35,8 @@ const createInterview = async (req, res) => {
             created_on: new Date()
         });
 
+        await cache.delPattern("interview:*");
+
         logger.info(`Interview created successfully - ID: ${newInterview.interview_id}, Name: ${interview_name}`);
         return res.status(201).json(new ApiResponse(201, newInterview, "Interview created successfully"));
 
@@ -48,6 +51,13 @@ const getAllInterviews = async (req, res) => {
     try {
         logger.info("Fetching all interviews");
 
+        const cacheKey = "interview:all";
+        const cachedData = await cache.get(cacheKey);
+        if (cachedData) {
+            logger.info("Returning cached interviews");
+            return res.status(200).json(cachedData);
+        }
+
         const whereCondition = { is_deleted: "N" };
 
         const interviews = await Interview.findAll({
@@ -57,9 +67,11 @@ const getAllInterviews = async (req, res) => {
 
         logger.info(`Retrieved ${interviews.length} interviews`);
 
-        return res.status(200).json(new ApiResponse(200, {
+        const response = new ApiResponse(200, {
             interviews
-        }, "Interviews fetched successfully"));
+        }, "Interviews fetched successfully");
+        await cache.set(cacheKey, response, 3600);
+        return res.status(200).json(response);
 
     } catch (error) {
         logger.error(`Error fetching interviews: ${error.message}`);
@@ -148,6 +160,8 @@ const updateInterview = async (req, res) => {
 
         await interview.save();
 
+        await cache.delPattern("interview:*");
+
         logger.info(`Interview updated successfully - ID: ${interview_id}`);
         return res.status(200).json(new ApiResponse(200, interview, "Interview updated successfully"));
 
@@ -183,6 +197,8 @@ const deleteInterview = async (req, res) => {
         interview.deleted_on = new Date();
 
         await interview.save();
+
+        await cache.delPattern("interview:*");
 
         logger.info(`Interview deleted successfully - ID: ${interview_id}`);
         return res.status(200).json(new ApiResponse(200, {}, "Interview deleted successfully"));

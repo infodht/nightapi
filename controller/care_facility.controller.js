@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { Op } from 'sequelize';
 import logger from '../logger/logger.js';
+import * as cache from '../services/cache/cache.service.js';
 
 const createCareFacility = async(req, res) => {
 
@@ -26,6 +27,9 @@ const createCareFacility = async(req, res) => {
             created_on: new Date()
         })
 
+        // Invalidate cache after creation
+        await cache.del("master:care_facilities:all");
+
         logger.info(`Care facility created successfully: ${careFacilityName} (ID: ${care.id})`);
         return res.status(200).json(new ApiResponse(200,care,'Care Facility Needs added successfully'))
     } catch (error) {
@@ -37,10 +41,26 @@ const createCareFacility = async(req, res) => {
 const getAllCareFacility = async(req, res) => {
     try {
         logger.info('Fetching all care facilities');
+        
+        // Check cache first
+        const cacheKey = "master:care_facilities:all";
+        const cachedData = await cache.get(cacheKey);
+        
+        if (cachedData) {
+          logger.info("Returning cached care facilities");
+          return res.status(200).json(cachedData);
+        }
+
         const careFacilities = await careFacility.findAll();
 
         logger.info(`Retrieved ${careFacilities.length} care facilities`);
-        return res.status(200).json(new ApiResponse(200, careFacilities, "Care Facility Fetched Successfully"));
+        
+        const response = new ApiResponse(200, careFacilities, "Care Facility Fetched Successfully");
+        
+        // Cache for 24 hours (master data is static)
+        await cache.set(cacheKey, response, 86400);
+        
+        return res.status(200).json(response);
     } catch (error) {
         logger.error(`Error fetching care facilities: ${error.message}`);
         return res.status(500).json(new ApiError(500, error.message, error, error.stack))
@@ -81,6 +101,9 @@ const updateFacilityName =  async(req, res) => {
     clientCareFacility.updated_on = new Date();
     await clientCareFacility.save();
 
+    // Invalidate cache after update
+    await cache.del("master:care_facilities:all");
+
     logger.info(`Care facility updated successfully - ID: ${id}`);
     return res
       .status(200)
@@ -112,6 +135,9 @@ const deleteCareFacility = async(req, res) => {
      clientCareFacility.is_deleted = "Y";
 
      const deleteFacility = await clientCareFacility.save();
+     
+     // Invalidate cache after deletion
+     await cache.del("master:care_facilities:all");
 
      logger.info(`Care facility deleted successfully - ID: ${id}`);
      return res.status(200).json({
