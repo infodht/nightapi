@@ -199,10 +199,10 @@ const sendMail = async (req, res) => {
     const { transporter, smtp } = await mailService();
 
     const senMail = await transporter.sendMail({
-      from: `"RDKi Group" <${smtp.smtp_user}>`,
+      from: `"Nightingale Care" <${smtp.smtp_user}>`,
       to,
       subject: subject || `Application Received - ${candidate.candidate_name}`,
-      text: text || `Hi ${candidate.candidate_name}, thank you for applying to RDKi Group. We have received your application and will review it shortly.`,
+      text: text || `Hi ${candidate.candidate_name}, thank you for applying to Nightingale Care. We have received your application and will review it shortly.`,
       html
     });
 
@@ -375,7 +375,7 @@ const sendHireflixMail = async (req, res) => {
     const { transporter, smtp } = await mailService();
 
     const senMail = await transporter.sendMail({
-      from: `"RDKi Group" <${smtp.smtp_user}>`,
+      from: `"Nightingale Care" <${smtp.smtp_user}>`,
       to,
       subject: subject || `Video Interview Invitation - ${position.name}`,
       text: text || `Hi ${candidate.candidate_name}, you've been invited to complete a video interview for the ${position} position. Please complete it within 48 hours: ${interviewLink}`,
@@ -415,115 +415,167 @@ const confirmationMail = async (req, res) => {
         <mj-head>
           <mj-title>Login Credentials - Your Company</mj-title>
           <mj-preview>Your account credentials for Your Company</mj-preview>
-          <mj-font name="Inter" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+          <mj-font
+            name="Inter"
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+          />
           <mj-attributes>
             <mj-all font-family="Inter, Arial, sans-serif" line-height="1.6" />
             <mj-section padding="0px" />
             <mj-column padding="0px" />
           </mj-attributes>
         </mj-head>
-
+        
         <mj-body background-color="#FAD2CF">
-          <!-- Header Section -->
-        <mj-section padding="40px 0 20px" background-color="#0A1744">
-              <mj-column>
-                <!-- Centered image at the top -->
-                  <mj-image 
-                    src="https://www.nightingale-care.co.uk/_webedit/cached-images/69-0-0-0-10000-10000-340.png" 
-                    alt="Nightingale Logo" 
-                    width="250px" 
-                    align="center" 
-                    padding="0 0 20px 0"
-                  />
-                <!-- Nightingale text -->
-                <mj-text align="center" color="#ffffff" font-size="25px" font-weight="600" style="white-space: nowrap;">
-                 Account Creadentials
-                </mj-text>
-              </mj-column>
-            </mj-section>
-
+        
+          <!-- Header -->
+          <mj-section padding="40px 0 20px" background-color="#0A1744">
+            <mj-column>
+              <mj-image
+                src="https://www.nightingale-care.co.uk/_webedit/cached-images/69-0-0-0-10000-10000-340.png"
+                alt="Nightingale Logo"
+                width="250px"
+                align="center"
+                padding="0 0 20px 0"
+              />
+              <mj-text
+                align="center"
+                color="#ffffff"
+                font-size="25px"
+                font-weight="600"
+              >
+                Account Credentials
+              </mj-text>
+            </mj-column>
+          </mj-section>
+        
           <!-- Main Content -->
           <mj-section background-color="#0A1744" padding="20px 0">
             <mj-column padding="0 40px">
-              <!-- Greeting -->
-              <mj-text padding="10px 0 20px" font-size="16px" color="white">
+        
+              <mj-text font-size="16px" color="white" padding="10px 0 20px">
                 Hello <strong>${name}</strong>,
               </mj-text>
-
-              <mj-text padding="10px 0" font-size="16px" color="white">
+        
+              <mj-text font-size="16px" color="white" padding="0 0 20px">
                 Your account has been successfully created. Here are your login credentials:
               </mj-text>
-
-              <!-- Credentials Box -->
-              <mj-section background-color="#f8f9fa" border="1px solid #e9ecef" border-radius="8px" padding="20px">
-                <mj-column>
-                  <!-- Email -->
-                  <mj-table padding="10px 0">
-                    <tr>
-                      <td width="80px" style="font-weight: 600; color: #495057; padding: 8px 0;">Email:</td>
-                      <td style="background-color: white; border: 1px solid #dee2e6; border-radius: 4px; padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 14px;">
-                        ${email}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td width="80px" style="font-weight: 600; color: #495057; padding: 8px 0;">Password:</td>
-                      <td style="background-color: white; border: 1px solid #dee2e6; border-radius: 4px; padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 14px;">
-                        ${password}
-                      </td>
-                    </tr>
-                  </mj-table>
-                </mj-column>
-              </mj-section>
-
+        
+              <!-- Credentials Card -->
+              <mj-text padding="0">
+                <div
+                  style="
+                    background:#f8f9fa;
+                    border:1px solid #e9ecef;
+                    border-radius:8px;
+                    padding:16px;
+                  "
+                >
+                  <p style="margin:0 0 8px 0; font-weight:600; color:#495057;">
+                    Email
+                  </p>
+                  <div
+                    style="
+                      background:#ffffff;
+                      border:1px solid #dee2e6;
+                      border-radius:4px;
+                      padding:8px 12px;
+                      font-size:14px;
+                      word-break:break-all;
+                    "
+                  >
+                    ${email}
+                  </div>
+        
+                  <p
+                    style="
+                      margin:16px 0 8px 0;
+                      font-weight:600;
+                      color:#495057;
+                    "
+                  >
+                    Password
+                  </p>
+                  <div
+                    style="
+                      background:#ffffff;
+                      border:1px solid #dee2e6;
+                      border-radius:4px;
+                      padding:8px 12px;
+                      font-size:14px;
+                      word-break:break-all;
+                    "
+                  >
+                    ${password}
+                  </div>
+                </div>
+              </mj-text>
+        
               <!-- Security Notice -->
-               <mj-section background-color="#fff3cd" border="1px solid #ffeaa7" border-radius="8px" padding="15px">
-                <mj-column>
-                  <mj-text padding="0" font-size="14px" color="#856404">
-                    <strong>🔒 Security Notice:</strong> For your security, we recommend changing your password after first login and never sharing your credentials with anyone.
-                  </mj-text>
-                </mj-column>
-              </mj-section>
-
+              <mj-text padding="20px 0 0">
+                <div
+                  style="
+                    background:#fff3cd;
+                    border:1px solid #ffeaa7;
+                    border-radius:8px;
+                    padding:12px;
+                    font-size:14px;
+                    color:#856404;
+                  "
+                >
+                  <strong>🔒 Security Notice:</strong>
+                  For your security, we recommend changing your password after first
+                  login and never sharing your credentials with anyone.
+                </div>
+              </mj-text>
+        
               <!-- Login Button -->
-              <mj-text padding="20px 0 10px" font-size="16px" color="white">
+              <mj-text font-size="16px" color="white" padding="20px 0 10px">
                 You can access your account using the button below:
               </mj-text>
-
-              <mj-button background-color="#FE6C5F" color="#ffffff"
-                        font-weight="600" 
-                        border-radius="6px" 
-                        padding="16px 32px"
-                        href="${loginUrl}">
+        
+              <mj-button
+                background-color="#FE6C5F"
+                color="#ffffff"
+                font-weight="600"
+                border-radius="6px"
+                padding="16px 32px"
+                href="${loginUrl}"
+              >
                 Login to Your Account
               </mj-button>
-
+        
               <!-- Security Tips -->
-              <mj-section padding="20px 0 0">
-                <mj-column>
-                  <mj-text padding="0" font-size="14px" color="white">
-                    <strong>Security Tips:</strong><br />
-                    • Change your password regularly<br />
-                    • Use a strong, unique password<br />
-                    • Never share your login details<br />
-                    • Log out after each session
-                  </mj-text>
-                </mj-column>
-              </mj-section>
+              <mj-text font-size="14px" color="white" padding="20px 0 0">
+                <strong>Security Tips:</strong><br />
+                • Change your password regularly<br />
+                • Use a strong, unique password<br />
+                • Never share your login details<br />
+                • Log out after each session
+              </mj-text>
+        
             </mj-column>
           </mj-section>
-
+        
           <!-- Footer -->
-         <mj-section background-color="#FAD2CF" padding="20px 0">
+          <mj-section background-color="#FAD2CF" padding="20px 0">
             <mj-column>
-              <mj-text align="center" color="#6c757d" font-size="14px" padding="0 0 10px">
-                If you have any questions, please contact our support team at 
-                <a href="mailto:enquiries@nightingale-care.co.uk" style="color: #667eea; text-decoration: none;">enquiries@nightingale-care.co.uk</a>
+              <mj-text align="center" color="#6c757d" font-size="14px">
+                If you have any questions, please contact our support team at
+                <a
+                  href="mailto:enquiries@nightingale-care.co.uk"
+                  style="color:#667eea; text-decoration:none;"
+                >
+                  enquiries@nightingale-care.co.uk
+                </a>
               </mj-text>
+        
               <mj-text align="center" color="#888" font-size="12px" padding="10px 0">
                 © ${new Date().getFullYear()} Nightingale Care. All rights reserved.
               </mj-text>
             </mj-column>
           </mj-section>
+        
         </mj-body>
       </mjml>`;
 
@@ -532,7 +584,7 @@ const confirmationMail = async (req, res) => {
     const { transporter, smtp } = await mailService();
 
     const senMail = await transporter.sendMail({
-      from: `"RDKi Group" <${smtp.smtp_user}>`,
+      from: `"Nightingale Care" <${smtp.smtp_user}>`,
       to,
       subject: subject || `Your Account Credentials`,
       text: `Hello ${name}, your account has been created. Your login email is ${email} and your password is ${password}. Please log in at ${loginUrl}.`,
